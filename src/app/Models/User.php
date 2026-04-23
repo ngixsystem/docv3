@@ -1,0 +1,190 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
+
+class User extends Authenticatable
+{
+    use Notifiable;
+    use SoftDeletes;
+
+    protected $fillable = [
+        'name',
+        'login',
+        'email',
+        'password',
+        'department_id',
+        'role',
+        'position',
+        'phone',
+        'is_active',
+        'background_image',
+    ];
+
+    protected $hidden = ['password', 'remember_token'];
+
+    protected $casts = [
+        'is_active' => 'boolean',
+    ];
+
+    public static array $roleNames = [
+        'admin' => 'Администратор',
+        'manager' => 'Руководитель',
+        'clerk' => 'Делопроизводитель',
+        'employee' => 'Сотрудник',
+    ];
+
+    public function department(): BelongsTo
+    {
+        return $this->belongsTo(Department::class);
+    }
+
+    public function groups(): BelongsToMany
+    {
+        return $this->belongsToMany(Group::class)->withTimestamps();
+    }
+
+    public function getRoleNameAttribute(): string
+    {
+        return self::$roleNames[$this->role] ?? $this->role;
+    }
+
+    public function getInitialsAttribute(): string
+    {
+        $parts = explode(' ', $this->name);
+        $initials = '';
+        foreach (array_slice($parts, 0, 2) as $part) {
+            $initials .= mb_substr($part, 0, 1);
+        }
+
+        return mb_strtoupper($initials);
+    }
+
+    public function getShortNameAttribute(): string
+    {
+        $parts = explode(' ', $this->name);
+        if (count($parts) >= 2) {
+            return $parts[0] . ' ' . mb_substr($parts[1], 0, 1) . '.';
+        }
+
+        return $this->name;
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->role === 'admin';
+    }
+
+    public function hasRole(string $role): bool
+    {
+        return $this->role === $role;
+    }
+
+    public function hasAnyRole(array $roles): bool
+    {
+        return in_array($this->role, $roles, true);
+    }
+
+    public function canManageUsers(): bool
+    {
+        return $this->isAdmin();
+    }
+
+    public function canManageStructure(): bool
+    {
+        return $this->isAdmin();
+    }
+
+    public function canCreateTasks(): bool
+    {
+        return $this->hasAnyRole(['admin', 'manager']);
+    }
+
+    public function canRegisterDocuments(): bool
+    {
+        return $this->hasAnyRole(['admin', 'clerk']);
+    }
+
+    public function canApproveDocuments(): bool
+    {
+        return $this->hasAnyRole(['admin', 'manager']);
+    }
+
+    public function allowedDocumentTypes(): array
+    {
+        return match ($this->role) {
+            'employee' => ['memo'],
+            default => array_keys(Document::$typeNames),
+        };
+    }
+
+    public function canCreateDocumentType(string $type): bool
+    {
+        return in_array($type, $this->allowedDocumentTypes(), true);
+    }
+
+    public function canViewDocument(Document $document): bool
+    {
+        if ($this->hasAnyRole(['admin', 'clerk'])) {
+            return true;
+        }
+
+        if (in_array($this->id, [
+            $document->created_by,
+            $document->sender_id,
+            $document->recipient_id,
+            $document->executor_id,
+        ], true)) {
+            return true;
+        }
+
+        if ($document->recipient_group_id && $this->groups()->whereKey($document->recipient_group_id)->exists()) {
+            return true;
+        }
+
+        if ($this->hasRole('manager') && $this->department_id) {
+            $document->loadMissing([
+                'sender:id,department_id',
+                'recipient:id,department_id',
+                'executor:id,department_id',
+                'createdBy:id,department_id',
+            ]);
+
+            return in_array($this->department_id, array_filter([
+                optional($document->sender)->department_id,
+                optional($document->recipient)->department_id,
+                optional($document->executor)->department_id,
+                optional($document->createdBy)->department_id,
+            ]), true);
+        }
+
+        return false;
+    }
+
+    public function canViewTask(Task $task): bool
+    {
+        if ($this->hasAnyRole(['admin', 'clerk'])) {
+            return true;
+        }
+
+        if ($task->assignee_id === $this->id || $task->created_by === $this->id) {
+            return true;
+        }
+
+        if ($task->document) {
+            return $this->canViewDocument($task->document);
+        }
+
+        return false;
+    }
+
+    public function canChangeTask(Task $task): bool
+    {
+        return $this->hasAnyRole(['admin', 'manager']) || $task->assignee_id === $this->id;
+    }
+}

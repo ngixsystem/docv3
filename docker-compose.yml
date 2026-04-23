@@ -1,0 +1,62 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: docv3_app
+    working_dir: /var/www
+    volumes:
+      # Исходный код — bind mount (для разработки)
+      - ./src:/var/www
+      # vendor, storage/framework, bootstrap/cache — named volumes (Linux FS, быстро)
+      - vendor_data:/var/www/vendor
+      - framework_cache:/var/www/storage/framework
+      - bootstrap_cache:/var/www/bootstrap/cache
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - docv3_network
+
+  webserver:
+    image: nginx:1.25-alpine
+    container_name: docv3_nginx
+    ports:
+      - "8080:80"
+    volumes:
+      - ./src:/var/www
+      - vendor_data:/var/www/vendor
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - app
+    networks:
+      - docv3_network
+
+  db:
+    image: postgres:16-alpine
+    container_name: docv3_postgres
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: docv3
+      POSTGRES_USER: docuser
+      POSTGRES_PASSWORD: docpassword
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U docuser -d docv3"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - docv3_network
+
+volumes:
+  pgdata:
+  vendor_data:
+  framework_cache:
+  bootstrap_cache:
+
+networks:
+  docv3_network:
+    driver: bridge
