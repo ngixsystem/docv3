@@ -41,8 +41,39 @@ class DocumentFile extends Model
             'pdf'        => 'icon-pdf',
             'doc', 'docx'=> 'icon-word',
             'xls', 'xlsx'=> 'icon-excel',
-            'jpg', 'jpeg', 'png' => 'icon-image',
+            'ppt', 'pptx'=> 'icon-powerpoint',
+            'jpg', 'jpeg', 'png', 'gif', 'webp', 'svg' => 'icon-image',
             default      => 'icon-file',
         };
+    }
+
+    public function isImage(): bool
+    {
+        return in_array(strtolower($this->extension), ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'], true);
+    }
+
+    public function isPdf(): bool
+    {
+        return strtolower($this->extension) === 'pdf';
+    }
+
+    public function isText(): bool
+    {
+        return in_array(strtolower($this->extension), ['txt', 'csv', 'json', 'xml', 'log', 'md'], true);
+    }
+
+    public function isAudio(): bool
+    {
+        return in_array(strtolower($this->extension), ['mp3', 'wav', 'ogg', 'm4a'], true);
+    }
+
+    public function isVideo(): bool
+    {
+        return in_array(strtolower($this->extension), ['mp4', 'webm', 'ogg'], true);
+    }
+
+    public function isOfficeDocument(): bool
+    {
+        return in_array(strtolower($this->extension), ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'], true);
     }
 }

@@ -833,13 +833,13 @@ html[data-theme="dark"] .overdue-badge { background: #351d23; color: #ffb5c0; }
 
   <div class="sidebar-user">
     @if($currentUser)
-      <div class="user-card" title="{{ $currentUser->name }}">
+      <a href="{{ route('profile.edit') }}" class="user-card" title="Мой профиль" style="text-decoration:none; color:inherit;">
         <div class="avatar" style="background: {{ avatarColor($currentUser->name) }};">{{ $currentUser->initials }}</div>
         <div class="user-info">
           <div class="user-name">{{ $currentUser->name }}</div>
           <div class="user-role">{{ $currentUser->role_name }}</div>
         </div>
-      </div>
+      </a>
       <form method="POST" action="{{ route('logout') }}" class="logout-form">
         @csrf
         <button type="submit" class="btn btn-sm logout-btn" title="Выйти">Выйти</button>
@@ -861,6 +861,14 @@ html[data-theme="dark"] .overdue-badge { background: #351d23; color: #ffb5c0; }
         <span class="theme-light">☾</span>
         <span class="theme-dark">☀</span>
       </button>
+      @auth
+        <a href="{{ route('notifications.index') }}" class="icon-btn theme-pill" style="position:relative;" title="Уведомления">
+          <span style="font-size:17px; line-height:1;">🔔</span>
+          @if($unreadCount > 0)
+            <span style="position:absolute; top:4px; right:4px; width:16px; height:16px; background:var(--accent); border-radius:50%; font-size:9px; font-weight:700; color:#fff; display:flex; align-items:center; justify-content:center; line-height:1;">{{ $unreadCount > 9 ? '9+' : $unreadCount }}</span>
+          @endif
+        </a>
+      @endauth
       @yield('topbar-actions')
       @if($currentUser && count($currentUser->allowedDocumentTypes()) > 0)
         <a href="{{ route('documents.create') }}" class="btn btn-primary">

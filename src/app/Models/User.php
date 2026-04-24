@@ -95,6 +95,16 @@ class User extends Authenticatable
         return $this->isAdmin();
     }
 
+    public function canEditDocument(Document $document): bool
+    {
+        return $this->isAdmin() || $document->created_by === $this->id;
+    }
+
+    public function canDeleteDocument(Document $document): bool
+    {
+        return $this->canEditDocument($document);
+    }
+
     public function canManageStructure(): bool
     {
         return $this->isAdmin();
@@ -113,6 +123,48 @@ class User extends Authenticatable
     public function canApproveDocuments(): bool
     {
         return $this->hasAnyRole(['admin', 'manager']);
+    }
+
+    public function isDocumentRecipient(Document $document): bool
+    {
+        if ($document->recipient_id === $this->id) {
+            return true;
+        }
+
+        return $document->recipient_group_id
+            ? $this->groups()->whereKey($document->recipient_group_id)->exists()
+            : false;
+    }
+
+    public function isDocumentExecutor(Document $document): bool
+    {
+        return $document->executor_id === $this->id;
+    }
+
+    public function canRecipientsViewDocument(Document $document): bool
+    {
+        return $document->status !== 'draft';
+    }
+
+    public function canChangeDocumentStatus(Document $document, string $status): bool
+    {
+        if ($status === 'registered') {
+            return $this->canRegisterDocuments();
+        }
+
+        if (in_array($status, ['approved', 'rejected'], true)) {
+            return $this->canApproveDocuments()
+                || $this->isDocumentRecipient($document)
+                || $this->isDocumentExecutor($document);
+        }
+
+        if (in_array($status, ['review', 'archive'], true)) {
+            return $this->hasAnyRole(['admin', 'manager', 'clerk'])
+                || $this->isDocumentRecipient($document)
+                || $this->isDocumentExecutor($document);
+        }
+
+        return false;
     }
 
     public function allowedDocumentTypes(): array
@@ -137,13 +189,12 @@ class User extends Authenticatable
         if (in_array($this->id, [
             $document->created_by,
             $document->sender_id,
-            $document->recipient_id,
             $document->executor_id,
         ], true)) {
             return true;
         }
 
-        if ($document->recipient_group_id && $this->groups()->whereKey($document->recipient_group_id)->exists()) {
+        if ($this->canRecipientsViewDocument($document) && $this->isDocumentRecipient($document)) {
             return true;
         }
 
@@ -155,12 +206,17 @@ class User extends Authenticatable
                 'createdBy:id,department_id',
             ]);
 
-            return in_array($this->department_id, array_filter([
+            $visibleDepartmentIds = array_filter([
                 optional($document->sender)->department_id,
-                optional($document->recipient)->department_id,
                 optional($document->executor)->department_id,
                 optional($document->createdBy)->department_id,
-            ]), true);
+            ]);
+
+            if ($this->canRecipientsViewDocument($document)) {
+                $visibleDepartmentIds[] = optional($document->recipient)->department_id;
+            }
+
+            return in_array($this->department_id, $visibleDepartmentIds, true);
         }
 
         return false;

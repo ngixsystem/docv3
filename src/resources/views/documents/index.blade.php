@@ -52,7 +52,7 @@
           <tr>
             <td><a href="{{ route('documents.show', $document) }}" class="td-link"><code>{{ $document->number }}</code></a></td>
             <td><span class="badge type-{{ $document->type }}">{{ $document->type_name }}</span></td>
-            <td><a href="{{ route('documents.show', $document) }}" class="td-link">{{ Str::limit($document->subject, 60) }}</a></td>
+            <td><a href="{{ route('documents.show', $document) }}" class="td-link">{{ \Illuminate\Support\Str::limit($document->subject, 60) }}</a></td>
             <td style="font-size:12.5px; color:var(--text-muted);">
               {{ $document->sender_org ?: $document->sender?->short_name ?: '—' }}
               <br>

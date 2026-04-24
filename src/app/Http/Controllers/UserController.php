@@ -6,6 +6,7 @@ use App\Models\Department;
 use App\Models\Group;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 
@@ -32,6 +33,7 @@ class UserController extends Controller
 
         $user = User::create($validated);
         $user->groups()->sync($groupIds);
+        Cache::forget('all_users_simple');
 
         return back()->with('success', 'Пользователь создан.');
     }
@@ -50,6 +52,7 @@ class UserController extends Controller
 
         $user->update($validated);
         $user->groups()->sync($groupIds);
+        Cache::forget('all_users_simple');
 
         return back()->with('success', 'Пользователь обновлен.');
     }
@@ -61,6 +64,7 @@ class UserController extends Controller
         }
 
         $user->delete();
+        Cache::forget('all_users_simple');
 
         return back()->with('success', 'Пользователь удален.');
     }
@@ -72,6 +76,7 @@ class UserController extends Controller
         }
 
         $user->update(['is_active' => !$user->is_active]);
+        Cache::forget('all_users_simple');
 
         return back()->with('success', $user->is_active ? 'Пользователь активирован.' : 'Пользователь деактивирован.');
     }

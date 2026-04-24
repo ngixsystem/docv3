@@ -2,13 +2,19 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Company;
 use App\Models\Document;
 use App\Models\DocumentStatusHistory;
 use App\Models\Group;
 use App\Models\User;
+use App\Notifications\AppNotification;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 
 class DocumentController extends Controller
 {
@@ -70,35 +76,17 @@ class DocumentController extends Controller
         $user = Auth::user();
         abort_unless(!empty($user->allowedDocumentTypes()), 403);
 
-        $users = Cache::remember('all_users_simple', 300, fn () =>
-            User::where('is_active', true)
-                ->select(['id', 'name', 'department_id'])
-                ->with('department:id,name')
-                ->orderBy('name')
-                ->get()
-        );
-        $groups = Group::withCount('users')->orderBy('name')->get(['id', 'name']);
-
-        return view('documents.create', compact('users', 'groups', 'user'));
+        return view('documents.create', $this->getDocumentFormData($user));
     }
 
     public function store(Request $request)
     {
         $user = Auth::user();
 
-        $validated = $request->validate([
-            'type' => 'required|in:' . implode(',', $user->allowedDocumentTypes()),
-            'subject' => 'required|string|max:500',
-            'description' => 'nullable|string',
-            'sender_id' => 'nullable|exists:users,id',
-            'recipient_id' => 'nullable|exists:users,id',
-            'recipient_group_id' => 'nullable|exists:groups,id',
-            'sender_org' => 'nullable|string|max:255',
-            'recipient_org' => 'nullable|string|max:255',
-            'executor_id' => 'nullable|exists:users,id',
-            'doc_date' => 'required|date',
-            'deadline' => 'nullable|date',
-        ]);
+        $validated = $request->validate($this->documentRules($user));
+        $relatedDocumentIds = $this->validatedRelatedDocumentIds($user, $validated);
+
+        unset($validated['related_document_ids']);
 
         $validated['created_by'] = $user->id;
         $validated['number'] = Document::generateNumber($validated['type']);
@@ -120,13 +108,69 @@ class DocumentController extends Controller
             }
         }
 
+        $this->storeRelatedDocuments($doc, $relatedDocumentIds);
+
         return redirect()->route('documents.show', $doc)
             ->with('success', 'Документ создан: ' . $doc->number);
     }
 
+    public function edit(Document $document)
+    {
+        $user = Auth::user();
+        abort_unless($user->canEditDocument($document), 403);
+
+        $document->load([
+            'relatedDocuments:id,number,subject,doc_date',
+            'reverseRelatedDocuments:id,number,subject,doc_date',
+        ]);
+
+        return view('documents.edit', array_merge(
+            $this->getDocumentFormData($user, $document),
+            ['document' => $document]
+        ));
+    }
+
+    public function update(Request $request, Document $document)
+    {
+        $user = Auth::user();
+        abort_unless($user->canEditDocument($document), 403);
+
+        $validated = $request->validate($this->documentRules($user));
+        $relatedDocumentIds = $this->validatedRelatedDocumentIds($user, $validated, $document);
+
+        unset($validated['related_document_ids']);
+
+        $document->update($validated);
+        $this->syncRelatedDocuments($document, $relatedDocumentIds);
+
+        return redirect()->route('documents.show', $document)
+            ->with('success', 'Документ обновлен: ' . $document->number);
+    }
+
+    public function destroy(Document $document)
+    {
+        $user = Auth::user();
+        abort_unless($user->canDeleteDocument($document), 403);
+
+        $document->loadMissing('files');
+
+        foreach ($document->files as $file) {
+            if ($file->path) {
+                Storage::disk('public')->delete($file->path);
+            }
+        }
+
+        $number = $document->number;
+        $document->delete();
+
+        return redirect()->route('documents.index')
+            ->with('success', 'Документ удален: ' . $number);
+    }
+
     public function show(Document $document)
     {
-        abort_unless(Auth::user()->canViewDocument($document), 403);
+        $user = Auth::user();
+        abort_unless($user->canViewDocument($document), 403);
 
         $document->load([
             'sender:id,name,department_id',
@@ -142,6 +186,8 @@ class DocumentController extends Controller
             'comments.user:id,name',
             'statusHistory.user:id,name',
             'tasks.assignee:id,name',
+            'relatedDocuments:id,number,subject,type,status,doc_date',
+            'reverseRelatedDocuments:id,number,subject,type,status,doc_date',
         ]);
 
         $users = Cache::remember('all_users_simple', 300, fn () =>
@@ -152,8 +198,12 @@ class DocumentController extends Controller
                 ->get()
         );
         $groups = Group::withCount('users')->orderBy('name')->get(['id', 'name']);
+        $relatedDocuments = $document->all_related_documents
+            ->filter(fn (Document $relatedDocument) => $user->canViewDocument($relatedDocument))
+            ->sortByDesc(fn (Document $relatedDocument) => optional($relatedDocument->doc_date)?->timestamp ?? 0)
+            ->values();
 
-        return view('documents.show', compact('document', 'users', 'groups'));
+        return view('documents.show', compact('document', 'users', 'groups', 'relatedDocuments'));
     }
 
     public function updateStatus(Request $request, Document $document)
@@ -171,15 +221,7 @@ class DocumentController extends Controller
             return back()->with('error', 'Недопустимый переход статуса.');
         }
 
-        if ($validated['status'] === 'registered' && !$user->canRegisterDocuments()) {
-            abort(403);
-        }
-
-        if (in_array($validated['status'], ['approved', 'rejected'], true) && !$user->canApproveDocuments()) {
-            abort(403);
-        }
-
-        if (in_array($validated['status'], ['review', 'archive'], true) && !$user->hasAnyRole(['admin', 'manager', 'clerk'])) {
+        if (!$user->canChangeDocumentStatus($document, $validated['status'])) {
             abort(403);
         }
 
@@ -193,6 +235,13 @@ class DocumentController extends Controller
 
         $document->update(['status' => $validated['status']]);
 
+        $this->notifyDocumentParticipants(
+            $document,
+            $user,
+            'Статус документа изменён',
+            $document->number . ': ' . Document::$statusNames[$validated['status']],
+        );
+
         return back()->with('success', 'Статус изменен на: ' . Document::$statusNames[$validated['status']]);
     }
 
@@ -201,10 +250,18 @@ class DocumentController extends Controller
         abort_unless(Auth::user()->canViewDocument($document), 403);
 
         $request->validate(['body' => 'required|string|max:2000']);
+        $commenter = Auth::user();
         $document->comments()->create([
-            'user_id' => Auth::id(),
+            'user_id' => $commenter->id,
             'body' => $request->body,
         ]);
+
+        $this->notifyDocumentParticipants(
+            $document,
+            $commenter,
+            'Новый комментарий к документу',
+            $document->number . ': ' . mb_strimwidth($request->body, 0, 80, '…'),
+        );
 
         return back()->with('success', 'Комментарий добавлен.');
     }
@@ -221,5 +278,134 @@ class DocumentController extends Controller
             'path' => $path,
             'uploaded_by' => $userId,
         ]);
+    }
+
+    private function storeRelatedDocuments(Document $document, Collection $relatedDocumentIds): void
+    {
+        if ($relatedDocumentIds->isEmpty()) {
+            return;
+        }
+
+        $rows = $relatedDocumentIds
+            ->reject(fn (int $relatedId) => $relatedId === $document->id)
+            ->map(function (int $relatedId) use ($document) {
+                return [
+                    'document_id' => min($document->id, $relatedId),
+                    'related_document_id' => max($document->id, $relatedId),
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ];
+            })
+            ->unique(fn (array $row) => $row['document_id'] . ':' . $row['related_document_id'])
+            ->values()
+            ->all();
+
+        if (!empty($rows)) {
+            DB::table('document_links')->insertOrIgnore($rows);
+        }
+    }
+
+    private function syncRelatedDocuments(Document $document, Collection $relatedDocumentIds): void
+    {
+        DB::table('document_links')
+            ->where('document_id', $document->id)
+            ->orWhere('related_document_id', $document->id)
+            ->delete();
+
+        $this->storeRelatedDocuments($document, $relatedDocumentIds);
+    }
+
+    private function getDocumentFormData(User $user, ?Document $document = null): array
+    {
+        $users = Cache::remember('all_users_simple', 300, fn () =>
+            User::where('is_active', true)
+                ->select(['id', 'name', 'department_id'])
+                ->with('department:id,name')
+                ->orderBy('name')
+                ->get()
+        );
+        $groups = Group::withCount('users')->orderBy('name')->get(['id', 'name']);
+        $companies = Company::query()
+            ->orderBy('name')
+            ->get(['id', 'name', 'details']);
+        $relatedDocuments = Document::query()
+            ->visibleTo($user)
+            ->when($document, fn ($query) => $query->where('id', '!=', $document->id))
+            ->select(['id', 'number', 'subject', 'doc_date', 'status'])
+            ->latest('doc_date')
+            ->latest('id')
+            ->get();
+
+        return compact('users', 'groups', 'companies', 'user', 'relatedDocuments');
+    }
+
+    private function documentRules(User $user): array
+    {
+        return [
+            'type' => 'required|in:' . implode(',', $user->allowedDocumentTypes()),
+            'subject' => 'required|string|max:500',
+            'description' => 'nullable|string',
+            'sender_id' => 'nullable|exists:users,id',
+            'recipient_id' => 'nullable|exists:users,id',
+            'recipient_group_id' => 'nullable|exists:groups,id',
+            'sender_org' => 'nullable|string|max:255',
+            'recipient_org' => 'nullable|string|max:255',
+            'executor_id' => 'nullable|exists:users,id',
+            'doc_date' => 'required|date',
+            'deadline' => 'nullable|date',
+            'related_document_ids' => 'nullable|array',
+            'related_document_ids.*' => 'integer|distinct|exists:documents,id',
+        ];
+    }
+
+    private function notifyDocumentParticipants(Document $document, User $actor, string $title, string $body): void
+    {
+        $url = route('documents.show', $document);
+        $notification = new AppNotification($title, $body, $url);
+
+        $document->loadMissing(['sender', 'recipient', 'executor', 'createdBy']);
+
+        $recipients = collect([
+            $document->sender,
+            $document->recipient,
+            $document->executor,
+            $document->createdBy,
+        ])
+            ->filter()
+            ->unique('id')
+            ->reject(fn (User $u) => $u->id === $actor->id);
+
+        foreach ($recipients as $recipient) {
+            $recipient->notify($notification);
+        }
+    }
+
+    private function validatedRelatedDocumentIds(User $user, array $validated, ?Document $document = null): Collection
+    {
+        $relatedDocumentIds = collect($validated['related_document_ids'] ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->reject(fn (int $id) => $document && $id === $document->id)
+            ->unique()
+            ->values();
+
+        if ($relatedDocumentIds->isEmpty()) {
+            return $relatedDocumentIds;
+        }
+
+        $visibleRelatedIds = Document::query()
+            ->visibleTo($user)
+            ->when($document, fn ($query) => $query->where('id', '!=', $document->id))
+            ->whereIn('id', $relatedDocumentIds)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        if (count($visibleRelatedIds) !== $relatedDocumentIds->count()) {
+            throw ValidationException::withMessages([
+                'related_document_ids' => 'Выбранные связанные документы недоступны.',
+            ]);
+        }
+
+        return $relatedDocumentIds;
     }
 }

@@ -934,7 +934,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 <tr>
                   <td><a href="{{ route('documents.show', $doc) }}" class="td-link" style="font-family:monospace;">{{ $doc->number }}</a></td>
                   <td><span class="badge type-{{ $doc->type }}">{{ $doc->type_name }}</span></td>
-                  <td><a href="{{ route('documents.show', $doc) }}" class="td-link">{{ Str::limit($doc->subject, 46) }}</a></td>
+                  <td><a href="{{ route('documents.show', $doc) }}" class="td-link">{{ \Illuminate\Support\Str::limit($doc->subject, 46) }}</a></td>
                   <td style="font-size:12px; color:var(--text-muted);">{{ $doc->doc_date->format('d.m.Y') }}</td>
                   <td><span class="badge status-{{ $doc->status }}">{{ $doc->status_name }}</span></td>
                 </tr>

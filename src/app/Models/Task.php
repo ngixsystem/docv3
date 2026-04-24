@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Task extends Model
 {
@@ -69,6 +70,21 @@ class Task extends Model
     public function document(): BelongsTo
     {
         return $this->belongsTo(Document::class);
+    }
+
+    public function comments(): HasMany
+    {
+        return $this->hasMany(TaskComment::class)->with('user')->latest();
+    }
+
+    public function taskFiles(): HasMany
+    {
+        return $this->hasMany(TaskFile::class)->with('uploader')->latest();
+    }
+
+    public function statusHistory(): HasMany
+    {
+        return $this->hasMany(TaskStatusHistory::class)->with('user')->latest();
     }
 
     public function scopeVisibleTo(Builder $query, User $user): Builder

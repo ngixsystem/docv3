@@ -35,6 +35,21 @@ $cols = [
   background: linear-gradient(180deg, #f4fcf7 0%, #e8f8ed 100%);
 }
 
+.task-card-clickable {
+  cursor: pointer;
+  transition: transform var(--transition), border-color var(--transition), box-shadow var(--transition);
+}
+
+.task-card-clickable:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+}
+
+.task-card-clickable:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 html[data-theme="dark"] .kanban-col-new {
   background: linear-gradient(180deg, rgba(26,37,57,.96) 0%, rgba(20,29,45,.96) 100%);
   border-color: #2a3952;
@@ -82,6 +97,22 @@ html[data-theme="dark"] .btn-secondary {
 html[data-theme="dark"] .btn-secondary:hover {
   background: rgba(255,255,255,.12);
 }
+
+.kanban-cards.drag-over {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  outline: 2px dashed var(--accent);
+  outline-offset: -4px;
+  border-radius: 10px;
+}
+
+.task-card.dragging {
+  opacity: .4;
+  cursor: grabbing;
+}
+
+.task-card[draggable="true"] {
+  cursor: grab;
+}
 </style>
 @endpush
 
@@ -93,9 +124,17 @@ html[data-theme="dark"] .btn-secondary:hover {
         <div class="kanban-title">{{ $col['label'] }}</div>
         <div class="kanban-count">{{ $columns[$status]->count() }}</div>
       </div>
-      <div class="kanban-cards">
+      <div class="kanban-cards" data-status="{{ $status }}">
         @foreach($columns[$status] as $task)
-          <div class="task-card {{ $task->is_overdue ? 'overdue' : '' }}">
+          <div
+            class="task-card task-card-clickable {{ $task->is_overdue ? 'overdue' : '' }}"
+            role="link"
+            tabindex="0"
+            data-task-id="{{ $task->id }}"
+            @if($currentUser->canChangeTask($task)) draggable="true" @endif
+            onclick="openTask('{{ route('tasks.show', $task) }}')"
+            onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openTask('{{ route('tasks.show', $task) }}'); }"
+          >
             <div class="task-title">{{ $task->title }}</div>
             <div class="task-meta">
               <span class="badge priority-{{ $task->priority }}">{{ $task->priority_name }}</span>
@@ -104,7 +143,7 @@ html[data-theme="dark"] .btn-secondary:hover {
               @endif
             </div>
             @if($task->description)
-              <div style="font-size:12px; color:var(--text-muted); margin-bottom:8px;">{{ Str::limit($task->description, 90) }}</div>
+              <div style="font-size:12px; color:var(--text-muted); margin-bottom:8px;">{{ \Illuminate\Support\Str::limit($task->description, 90) }}</div>
             @endif
             <div class="task-footer">
               <div class="assignee-chip">
@@ -122,7 +161,7 @@ html[data-theme="dark"] .btn-secondary:hover {
               <div class="task-actions">
                 @foreach($cols as $target => $targetCol)
                   @if($target !== $status)
-                    <button class="btn btn-sm btn-secondary" type="button" onclick="changeTaskStatus({{ $task->id }}, '{{ $target }}')">{{ $targetCol['label'] }}</button>
+                    <button class="btn btn-sm btn-secondary" type="button" onclick="event.stopPropagation(); changeTaskStatus({{ $task->id }}, '{{ $target }}')">{{ $targetCol['label'] }}</button>
                   @endif
                 @endforeach
               </div>
@@ -181,7 +220,7 @@ html[data-theme="dark"] .btn-secondary:hover {
               <select name="document_id" class="form-control">
                 <option value="">—</option>
                 @foreach($documents as $document)
-                  <option value="{{ $document->id }}">{{ $document->number }} — {{ Str::limit($document->subject, 40) }}</option>
+                  <option value="{{ $document->id }}">{{ $document->number }} — {{ \Illuminate\Support\Str::limit($document->subject, 40) }}</option>
                 @endforeach
               </select>
             </div>
@@ -198,6 +237,10 @@ html[data-theme="dark"] .btn-secondary:hover {
 
 @push('scripts')
 <script>
+function openTask(url) {
+  window.location.href = url;
+}
+
 function changeTaskStatus(taskId, status) {
   fetch('/tasks/' + taskId + '/status', {
     method: 'PATCH',
@@ -208,6 +251,41 @@ function changeTaskStatus(taskId, status) {
     body: JSON.stringify({ status })
   }).then(() => location.reload());
 }
+
+// Drag & drop
+let draggingCard = null;
+
+document.querySelectorAll('.task-card[draggable="true"]').forEach(card => {
+  card.addEventListener('dragstart', e => {
+    draggingCard = card;
+    card.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+  });
+  card.addEventListener('dragend', () => {
+    card.classList.remove('dragging');
+    draggingCard = null;
+    document.querySelectorAll('.kanban-cards').forEach(c => c.classList.remove('drag-over'));
+  });
+});
+
+document.querySelectorAll('.kanban-cards').forEach(col => {
+  col.addEventListener('dragover', e => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    col.classList.add('drag-over');
+  });
+  col.addEventListener('dragleave', e => {
+    if (!col.contains(e.relatedTarget)) col.classList.remove('drag-over');
+  });
+  col.addEventListener('drop', e => {
+    e.preventDefault();
+    col.classList.remove('drag-over');
+    if (!draggingCard) return;
+    const targetStatus = col.dataset.status;
+    const taskId = draggingCard.dataset.taskId;
+    changeTaskStatus(taskId, targetStatus);
+  });
+});
 </script>
 @endpush
 @endsection

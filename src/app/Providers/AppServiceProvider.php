@@ -26,7 +26,9 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('view-task', fn (User $user, Task $task) => $user->canViewTask($task));
 
         View::composer('*', function ($view) {
-            $view->with('currentUser', Auth::user());
+            $user = Auth::user();
+            $view->with('currentUser', $user);
+            $view->with('unreadCount', $user ? $user->unreadNotifications()->count() : 0);
         });
     }
 }

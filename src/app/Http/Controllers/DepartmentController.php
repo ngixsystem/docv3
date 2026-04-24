@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Company;
 use App\Models\Department;
 use App\Models\Group;
 use App\Models\User;
@@ -22,11 +23,15 @@ class DepartmentController extends Controller
             ->orderBy('name')
             ->get();
 
+        $companies = Company::query()
+            ->orderBy('name')
+            ->get();
+
         $users = User::query()
             ->orderBy('name')
             ->get(['id', 'name', 'department_id']);
 
-        return view('admin.organization.index', compact('departments', 'groups', 'users'));
+        return view('admin.organization.index', compact('departments', 'groups', 'companies', 'users'));
     }
 
     public function store(Request $request)

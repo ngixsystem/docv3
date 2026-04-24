@@ -1,8 +1,8 @@
-﻿@extends('layouts.app')
-@section('page-title', 'Новый документ')
+@extends('layouts.app')
+@section('page-title', 'Редактирование документа')
 
 @section('topbar-actions')
-  <a href="{{ route('documents.index') }}" class="btn btn-secondary btn-sm">Назад</a>
+  <a href="{{ route('documents.show', $document) }}" class="btn btn-secondary btn-sm">К документу</a>
 @endsection
 
 @push('styles')
@@ -23,21 +23,31 @@
 
 @section('content')
 @php
-  $oldRelatedDocumentIds = collect(old('related_document_ids', []))->map(fn ($id) => (string) $id)->all();
+  $selectedRelatedDocumentIds = collect(old('related_document_ids', $document->all_related_documents->pluck('id')->all()))
+    ->map(fn ($id) => (string) $id)
+    ->all();
 @endphp
 <div style="max-width:860px; margin:0 auto;">
   <div class="card">
-    <div class="card-header"><div class="card-title">Создание документа</div></div>
+    <div class="card-header"><div class="card-title">Редактирование документа</div></div>
     <div class="card-body">
-      <form method="POST" action="{{ route('documents.store') }}" enctype="multipart/form-data" id="createForm">
+      <form method="POST" action="{{ route('documents.update', $document) }}" id="editForm">
         @csrf
+        @method('PATCH')
 
         <div class="form-group">
           <label class="form-label">Тип документа</label>
           <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:10px;">
             @foreach($user->allowedDocumentTypes() as $type)
               <label style="cursor:pointer;">
-                <input type="radio" name="type" value="{{ $type }}" {{ old('type', $user->allowedDocumentTypes()[0]) === $type ? 'checked' : '' }} style="display:none;" class="type-radio">
+                <input
+                  type="radio"
+                  name="type"
+                  value="{{ $type }}"
+                  {{ old('type', $document->type) === $type ? 'checked' : '' }}
+                  style="display:none;"
+                  class="type-radio"
+                >
                 <div class="type-opt" data-val="{{ $type }}" style="padding:14px; border:2px solid var(--border); border-radius:10px; text-align:center;">
                   <div style="font-size:13px; font-weight:600;">{{ \App\Models\Document::$typeNames[$type] }}</div>
                 </div>
@@ -48,17 +58,17 @@
 
         <div class="form-group">
           <label class="form-label">Тема</label>
-          <input type="text" name="subject" class="form-control" value="{{ old('subject') }}" required>
+          <input type="text" name="subject" class="form-control" value="{{ old('subject', $document->subject) }}" required>
         </div>
 
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">Дата документа</label>
-            <input type="date" name="doc_date" class="form-control" value="{{ old('doc_date', date('Y-m-d')) }}" required>
+            <input type="date" name="doc_date" class="form-control" value="{{ old('doc_date', $document->doc_date?->format('Y-m-d')) }}" required>
           </div>
           <div class="form-group">
             <label class="form-label">Срок исполнения</label>
-            <input type="date" name="deadline" class="form-control" value="{{ old('deadline') }}">
+            <input type="date" name="deadline" class="form-control" value="{{ old('deadline', $document->deadline?->format('Y-m-d')) }}">
           </div>
         </div>
 
@@ -68,13 +78,20 @@
             <select name="sender_id" class="form-control">
               <option value="">—</option>
               @foreach($users as $item)
-                <option value="{{ $item->id }}" @selected(old('sender_id') == $item->id)>{{ $item->name }} ({{ $item->department?->name }})</option>
+                <option value="{{ $item->id }}" @selected((string) old('sender_id', $document->sender_id) === (string) $item->id)>{{ $item->name }} ({{ $item->department?->name }})</option>
               @endforeach
             </select>
           </div>
           <div class="form-group">
             <label class="form-label">Отправитель (организация)</label>
-            <input type="text" name="sender_org" class="form-control" value="{{ old('sender_org') }}" list="senderCompaniesList" placeholder="Выберите компанию из справочника или введите вручную">
+            <input
+              type="text"
+              name="sender_org"
+              class="form-control"
+              value="{{ old('sender_org', $document->sender_org) }}"
+              list="senderCompaniesList"
+              placeholder="Выберите компанию из справочника или введите вручную"
+            >
             <datalist id="senderCompaniesList">
               @foreach($companies as $company)
                 <option value="{{ $company->name }}">{{ $company->details ? \Illuminate\Support\Str::limit($company->details, 80) : '' }}</option>
@@ -92,13 +109,13 @@
             <select name="recipient_id" class="form-control">
               <option value="">—</option>
               @foreach($users as $item)
-                <option value="{{ $item->id }}" @selected(old('recipient_id') == $item->id)>{{ $item->name }} ({{ $item->department?->name }})</option>
+                <option value="{{ $item->id }}" @selected((string) old('recipient_id', $document->recipient_id) === (string) $item->id)>{{ $item->name }} ({{ $item->department?->name }})</option>
               @endforeach
             </select>
           </div>
           <div class="form-group">
             <label class="form-label">Получатель (организация)</label>
-            <input type="text" name="recipient_org" class="form-control" value="{{ old('recipient_org') }}">
+            <input type="text" name="recipient_org" class="form-control" value="{{ old('recipient_org', $document->recipient_org) }}">
           </div>
         </div>
 
@@ -108,7 +125,7 @@
             <select name="recipient_group_id" class="form-control">
               <option value="">—</option>
               @foreach($groups as $group)
-                <option value="{{ $group->id }}" @selected(old('recipient_group_id') == $group->id)>{{ $group->name }} ({{ $group->users_count }})</option>
+                <option value="{{ $group->id }}" @selected((string) old('recipient_group_id', $document->recipient_group_id) === (string) $group->id)>{{ $group->name }} ({{ $group->users_count }})</option>
               @endforeach
             </select>
           </div>
@@ -117,7 +134,7 @@
             <select name="executor_id" class="form-control">
               <option value="">—</option>
               @foreach($users as $item)
-                <option value="{{ $item->id }}" @selected(old('executor_id') == $item->id)>{{ $item->name }} ({{ $item->department?->name }})</option>
+                <option value="{{ $item->id }}" @selected((string) old('executor_id', $document->executor_id) === (string) $item->id)>{{ $item->name }} ({{ $item->department?->name }})</option>
               @endforeach
             </select>
           </div>
@@ -125,11 +142,11 @@
 
         <div class="form-group">
           <label class="form-label">Описание</label>
-          <textarea name="description" class="form-control" rows="5">{{ old('description') }}</textarea>
+          <textarea name="description" class="form-control" rows="5">{{ old('description', $document->description) }}</textarea>
         </div>
 
         <div class="form-group">
-          <label class="form-label">&#1057;&#1074;&#1103;&#1079;&#1072;&#1085;&#1085;&#1099;&#1077; &#1076;&#1086;&#1082;&#1091;&#1084;&#1077;&#1085;&#1090;&#1099;</label>
+          <label class="form-label">Связанные документы</label>
           <input
             type="text"
             id="relatedDocumentSearch"
@@ -148,29 +165,20 @@
               <option
                 value="{{ $relatedDocument->id }}"
                 data-search="{{ mb_strtolower($relatedDocument->number . ' ' . $relatedDocument->subject . ' ' . $relatedDocument->doc_date?->format('d.m.Y')) }}"
-                @selected(in_array((string) $relatedDocument->id, $oldRelatedDocumentIds, true))
+                @selected(in_array((string) $relatedDocument->id, $selectedRelatedDocumentIds, true))
               >
-                {{ $relatedDocument->number }} &middot; {{ $relatedDocument->subject }} &middot; {{ $relatedDocument->doc_date?->format('d.m.Y') }}
+                {{ $relatedDocument->number }} · {{ $relatedDocument->subject }} · {{ $relatedDocument->doc_date?->format('d.m.Y') }}
               </option>
             @endforeach
           </select>
           <div style="margin-top:6px; font-size:12px; color:var(--text-muted);">
-            &#1059;&#1076;&#1077;&#1088;&#1078;&#1080;&#1074;&#1072;&#1081;&#1090;&#1077; Ctrl &#1080;&#1083;&#1080; Cmd, &#1095;&#1090;&#1086;&#1073;&#1099; &#1074;&#1099;&#1073;&#1088;&#1072;&#1090;&#1100; &#1085;&#1077;&#1089;&#1082;&#1086;&#1083;&#1100;&#1082;&#1086; &#1076;&#1086;&#1082;&#1091;&#1084;&#1077;&#1085;&#1090;&#1086;&#1074; &#1076;&#1083;&#1103; &#1089;&#1074;&#1103;&#1079;&#1080;.
+            Удерживайте Ctrl или Cmd, чтобы выбрать несколько документов для связи.
           </div>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">Файлы</label>
-          <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()">
-            Нажмите или перетащите файлы
-          </div>
-          <input type="file" id="fileInput" name="files[]" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png" style="display:none;">
-          <div class="file-list" id="fileList"></div>
         </div>
 
         <div style="display:flex; justify-content:flex-end; gap:10px;">
-          <a href="{{ route('documents.index') }}" class="btn btn-secondary">Отмена</a>
-          <button type="submit" class="btn btn-primary">Создать документ</button>
+          <a href="{{ route('documents.show', $document) }}" class="btn btn-secondary">Отмена</a>
+          <button type="submit" class="btn btn-primary">Сохранить изменения</button>
         </div>
       </form>
     </div>
@@ -179,13 +187,9 @@
 
 @push('scripts')
 <script>
-const dz = document.getElementById('dropzone');
-const fi = document.getElementById('fileInput');
-const fl = document.getElementById('fileList');
 const relatedDocumentSearch = document.getElementById('relatedDocumentSearch');
 const relatedDocumentsSelect = document.getElementById('relatedDocumentsSelect');
 const typeRadios = Array.from(document.querySelectorAll('.type-radio'));
-let files = [];
 
 function syncTypeOptions() {
   typeRadios.forEach(radio => {
@@ -194,35 +198,8 @@ function syncTypeOptions() {
   });
 }
 
-dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
-dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
-dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag-over'); addFiles(e.dataTransfer.files); });
-fi.addEventListener('change', () => addFiles(fi.files));
 typeRadios.forEach(radio => radio.addEventListener('change', syncTypeOptions));
 syncTypeOptions();
-
-function addFiles(fileList) {
-  Array.from(fileList).forEach(f => files.push(f));
-  renderFiles();
-  updateInput();
-}
-function removeFile(i) {
-  files.splice(i, 1);
-  renderFiles();
-  updateInput();
-}
-function renderFiles() {
-  fl.innerHTML = files.map((f, i) => {
-    const ext = f.name.split('.').pop().toLowerCase();
-    const size = f.size < 1048576 ? (f.size / 1024).toFixed(1) + ' КБ' : (f.size / 1048576).toFixed(1) + ' МБ';
-    return `<div class="file-item"><span class="file-ext ext-${ext}">${ext.toUpperCase()}</span><span class="file-name">${f.name}</span><span class="file-size">${size}</span><button class="file-remove" type="button" onclick="removeFile(${i})">×</button></div>`;
-  }).join('');
-}
-function updateInput() {
-  const dt = new DataTransfer();
-  files.forEach(f => dt.items.add(f));
-  fi.files = dt.files;
-}
 
 relatedDocumentSearch?.addEventListener('input', function () {
   const query = this.value.trim().toLowerCase();
