@@ -17,7 +17,6 @@ RUN docker-php-ext-install \
 
 COPY --from=composer:2.7 /usr/bin/composer /usr/bin/composer
 
-# OPcache tuning
 RUN { \
     echo 'opcache.enable=1'; \
     echo 'opcache.memory_consumption=256'; \
@@ -32,15 +31,15 @@ RUN { \
 
 WORKDIR /var/www
 
-# Сначала только composer.json — используем layer cache
+# Copy dependency manifests first to reuse Docker layer cache.
 COPY src/composer.json src/composer.lock* ./
 RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist
 
-# Копируем весь исходный код
+# Copy the application source.
 COPY src/ .
 RUN composer dump-autoload --optimize
 
-# Создаём директории (попадут в образ — named volumes инициализируются из образа)
+# Prepare writable Laravel directories for named volumes.
 RUN mkdir -p \
     storage/logs \
     storage/app/public/uploads \
@@ -52,5 +51,9 @@ RUN mkdir -p \
     && chmod -R 775 storage bootstrap/cache \
     && chown -R www-data:www-data storage bootstrap/cache vendor
 
+COPY docker/entrypoint.sh /usr/local/bin/app-entrypoint
+RUN chmod +x /usr/local/bin/app-entrypoint
+
 EXPOSE 9000
+ENTRYPOINT ["app-entrypoint"]
 CMD ["php-fpm"]
