@@ -64,13 +64,19 @@
 
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label">Отправитель (сотрудник)</label>
-            <select name="sender_id" class="form-control">
-              <option value="">—</option>
-              @foreach($users as $item)
-                <option value="{{ $item->id }}" @selected(old('sender_id') == $item->id)>{{ $item->name }} ({{ $item->department?->name }})</option>
-              @endforeach
-            </select>
+            <label class="form-label">Составитель</label>
+            <div class="user-combobox">
+              <input
+                type="text"
+                id="senderComboInput"
+                class="form-control user-combobox-input"
+                placeholder="Введите имя или выберите из списка"
+                autocomplete="off"
+                value="{{ old('sender_id') ? ($users->find(old('sender_id'))?->name ?? '') : '' }}"
+              >
+              <input type="hidden" name="sender_id" id="senderComboId" value="{{ old('sender_id') }}">
+              <div class="user-combobox-dropdown" id="senderComboDropdown"></div>
+            </div>
           </div>
           <div class="form-group">
             <label class="form-label">Отправитель (организация)</label>
@@ -89,12 +95,13 @@
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">Получатель (сотрудник)</label>
-            <select name="recipient_id" class="form-control">
-              <option value="">—</option>
-              @foreach($users as $item)
-                <option value="{{ $item->id }}" @selected(old('recipient_id') == $item->id)>{{ $item->name }} ({{ $item->department?->name }})</option>
-              @endforeach
-            </select>
+            <div class="user-combobox">
+              <input type="text" id="recipientComboInput" class="form-control user-combobox-input"
+                placeholder="Введите имя или выберите из списка" autocomplete="off"
+                value="{{ old('recipient_id') ? ($users->find(old('recipient_id'))?->name ?? '') : '' }}">
+              <input type="hidden" name="recipient_id" id="recipientComboId" value="{{ old('recipient_id') }}">
+              <div class="user-combobox-dropdown" id="recipientComboDropdown"></div>
+            </div>
           </div>
           <div class="form-group">
             <label class="form-label">Получатель (организация)</label>
@@ -114,12 +121,13 @@
           </div>
           <div class="form-group">
             <label class="form-label">Исполнитель</label>
-            <select name="executor_id" class="form-control">
-              <option value="">—</option>
-              @foreach($users as $item)
-                <option value="{{ $item->id }}" @selected(old('executor_id') == $item->id)>{{ $item->name }} ({{ $item->department?->name }})</option>
-              @endforeach
-            </select>
+            <div class="user-combobox">
+              <input type="text" id="executorComboInput" class="form-control user-combobox-input"
+                placeholder="Введите имя или выберите из списка" autocomplete="off"
+                value="{{ old('executor_id') ? ($users->find(old('executor_id'))?->name ?? '') : '' }}">
+              <input type="hidden" name="executor_id" id="executorComboId" value="{{ old('executor_id') }}">
+              <div class="user-combobox-dropdown" id="executorComboDropdown"></div>
+            </div>
           </div>
         </div>
 
@@ -129,14 +137,21 @@
         </div>
 
         <div class="form-group">
-          <label class="form-label">&#1057;&#1074;&#1103;&#1079;&#1072;&#1085;&#1085;&#1099;&#1077; &#1076;&#1086;&#1082;&#1091;&#1084;&#1077;&#1085;&#1090;&#1099;</label>
+          <label class="form-label">Связанные документы</label>
           <input
             type="text"
             id="relatedDocumentSearch"
             class="form-control"
             placeholder="Поиск по номеру, теме или дате"
-            style="margin-bottom:10px;"
+            style="margin-bottom:8px;"
           >
+          <div class="doc-type-filters" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px;">
+            <button type="button" class="doc-type-filter active" data-type="">Все</button>
+            <button type="button" class="doc-type-filter" data-type="incoming">Входящее</button>
+            <button type="button" class="doc-type-filter" data-type="outgoing">Исходящее</button>
+            <button type="button" class="doc-type-filter" data-type="memo">Служебная записка</button>
+            <button type="button" class="doc-type-filter" data-type="internal">Внутренний</button>
+          </div>
           <select
             name="related_document_ids[]"
             id="relatedDocumentsSelect"
@@ -147,6 +162,7 @@
             @foreach($relatedDocuments as $relatedDocument)
               <option
                 value="{{ $relatedDocument->id }}"
+                data-type="{{ $relatedDocument->type }}"
                 data-search="{{ mb_strtolower($relatedDocument->number . ' ' . $relatedDocument->subject . ' ' . $relatedDocument->doc_date?->format('d.m.Y')) }}"
                 @selected(in_array((string) $relatedDocument->id, $oldRelatedDocumentIds, true))
               >
@@ -155,7 +171,7 @@
             @endforeach
           </select>
           <div style="margin-top:6px; font-size:12px; color:var(--text-muted);">
-            &#1059;&#1076;&#1077;&#1088;&#1078;&#1080;&#1074;&#1072;&#1081;&#1090;&#1077; Ctrl &#1080;&#1083;&#1080; Cmd, &#1095;&#1090;&#1086;&#1073;&#1099; &#1074;&#1099;&#1073;&#1088;&#1072;&#1090;&#1100; &#1085;&#1077;&#1089;&#1082;&#1086;&#1083;&#1100;&#1082;&#1086; &#1076;&#1086;&#1082;&#1091;&#1084;&#1077;&#1085;&#1090;&#1086;&#1074; &#1076;&#1083;&#1103; &#1089;&#1074;&#1103;&#1079;&#1080;.
+            Удерживайте Ctrl или Cmd, чтобы выбрать несколько документов для связи.
           </div>
         </div>
 
@@ -224,14 +240,67 @@ function updateInput() {
   fi.files = dt.files;
 }
 
-relatedDocumentSearch?.addEventListener('input', function () {
-  const query = this.value.trim().toLowerCase();
+let activeDocTypeFilter = '';
 
+function filterRelatedDocs() {
+  const query = relatedDocumentSearch.value.trim().toLowerCase();
   Array.from(relatedDocumentsSelect.options).forEach(option => {
     const haystack = option.dataset.search || option.text.toLowerCase();
-    option.hidden = query !== '' && !haystack.includes(query);
+    const matchesQuery = query === '' || haystack.includes(query);
+    const matchesType = activeDocTypeFilter === '' || option.dataset.type === activeDocTypeFilter;
+    option.hidden = !matchesQuery || !matchesType;
+  });
+}
+
+relatedDocumentSearch?.addEventListener('input', filterRelatedDocs);
+
+document.querySelectorAll('.doc-type-filter').forEach(btn => {
+  btn.addEventListener('click', function () {
+    document.querySelectorAll('.doc-type-filter').forEach(b => b.classList.remove('active'));
+    this.classList.add('active');
+    activeDocTypeFilter = this.dataset.type;
+    filterRelatedDocs();
   });
 });
+
+// User combobox factory
+const usersData = @json($users->map(fn($u) => ['id' => $u->id, 'name' => $u->name, 'dept' => $u->department?->name ?? ''])->values());
+
+function makeUserCombobox(inputId, hiddenId, dropdownId) {
+  const input    = document.getElementById(inputId);
+  const hidden   = document.getElementById(hiddenId);
+  const dropdown = document.getElementById(dropdownId);
+  if (!input) return;
+
+  function renderOptions(query) {
+    const q = query.trim().toLowerCase();
+    const matches = q ? usersData.filter(u => u.name.toLowerCase().includes(q)) : usersData;
+    if (!matches.length) { dropdown.classList.remove('open'); return; }
+    dropdown.innerHTML = matches.slice(0, 12).map(u =>
+      `<div class="user-combobox-option" data-id="${u.id}" data-name="${u.name}">
+        <span>${u.name}</span>
+        ${u.dept ? `<span class="user-combobox-option-dept">${u.dept}</span>` : ''}
+      </div>`
+    ).join('');
+    dropdown.classList.add('open');
+    dropdown.querySelectorAll('.user-combobox-option').forEach(opt => {
+      opt.addEventListener('mousedown', function (e) {
+        e.preventDefault();
+        input.value  = this.dataset.name;
+        hidden.value = this.dataset.id;
+        dropdown.classList.remove('open');
+      });
+    });
+  }
+
+  input.addEventListener('input', function () { hidden.value = ''; renderOptions(this.value); });
+  input.addEventListener('focus', function () { renderOptions(this.value); });
+  input.addEventListener('blur',  function () { setTimeout(() => dropdown.classList.remove('open'), 150); });
+}
+
+makeUserCombobox('senderComboInput',    'senderComboId',    'senderComboDropdown');
+makeUserCombobox('recipientComboInput', 'recipientComboId', 'recipientComboDropdown');
+makeUserCombobox('executorComboInput',  'executorComboId',  'executorComboDropdown');
 </script>
 @endpush
 @endsection

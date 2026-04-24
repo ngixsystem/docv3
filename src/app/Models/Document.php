@@ -39,8 +39,8 @@ class Document extends Model
     public static array $statusNames = [
         'draft' => 'Черновик',
         'registered' => 'Зарегистрирован',
-        'review' => 'На рассмотрении',
-        'approved' => 'Утвержден',
+        'review' => 'В работе',
+        'approved' => 'Выполнено',
         'rejected' => 'Отклонен',
         'archive' => 'Архив',
     ];

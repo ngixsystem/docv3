@@ -331,7 +331,7 @@ class DocumentController extends Controller
         $relatedDocuments = Document::query()
             ->visibleTo($user)
             ->when($document, fn ($query) => $query->where('id', '!=', $document->id))
-            ->select(['id', 'number', 'subject', 'doc_date', 'status'])
+            ->select(['id', 'number', 'subject', 'doc_date', 'status', 'type'])
             ->latest('doc_date')
             ->latest('id')
             ->get();

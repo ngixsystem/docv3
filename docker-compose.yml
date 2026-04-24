@@ -22,11 +22,13 @@ services:
     image: nginx:1.25-alpine
     container_name: docv3_nginx
     ports:
-      - "8080:80"
+      - "80:80"
+      - "443:443"
     volumes:
       - ./src:/var/www
       - vendor_data:/var/www/vendor
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+      - ./docker/ssl:/etc/nginx/ssl:ro
     depends_on:
       - app
     networks:

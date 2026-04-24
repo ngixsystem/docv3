@@ -251,7 +251,7 @@
 
         <div class="recipient-actions">
           @foreach($availableStatuses as $status)
-            <button type="button" class="btn btn-primary" onclick="openStatusModal('{{ $status }}', '{{ \App\Models\Document::$statusNames[$status] }}')">
+            <button type="button" class="btn {{ $status === 'approved' ? 'btn-success' : 'btn-primary' }}" onclick="openStatusModal('{{ $status }}', '{{ \App\Models\Document::$statusNames[$status] }}')">
               → {{ \App\Models\Document::$statusNames[$status] }}
             </button>
           @endforeach
@@ -292,9 +292,9 @@
           </div>
 
           <div class="recipient-person">
-            <div class="avatar" style="background: {{ avatarColor($document->sender?->name ?? ($document->sender_org ?? 'Отправитель')) }};">{{ $document->sender?->initials ?? 'О' }}</div>
+            <div class="avatar" style="background: {{ avatarColor($document->sender?->name ?? ($document->sender_org ?? 'Составитель')) }};">{{ $document->sender?->initials ?? 'С' }}</div>
             <div class="recipient-person-copy">
-              <div class="recipient-person-label">Отправитель</div>
+              <div class="recipient-person-label">Составитель</div>
               <div class="recipient-person-name">{{ $document->sender?->name ?? $document->sender_org ?? '—' }}</div>
             </div>
           </div>
@@ -339,7 +339,7 @@
       <div class="card-header"><div class="card-title">Маршрут</div></div>
       <div class="card-body" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px;">
         <div>
-          <div style="font-size:11px; color:var(--text-muted); margin-bottom:4px;">Отправитель</div>
+          <div style="font-size:11px; color:var(--text-muted); margin-bottom:4px;">Составитель</div>
           <div>{{ $document->sender?->name ?? $document->sender_org ?? '—' }}</div>
         </div>
         <div>
@@ -428,7 +428,7 @@
           <span class="badge status-{{ $document->status }}" style="font-size:14px; padding:6px 16px;">{{ $document->status_name }}</span>
         </div>
         @foreach($availableStatuses as $status)
-          <button type="button" class="btn btn-primary" style="width:100%; margin-bottom:8px;" onclick="openStatusModal('{{ $status }}', '{{ \App\Models\Document::$statusNames[$status] }}')">
+          <button type="button" class="btn {{ $status === 'approved' ? 'btn-success' : 'btn-primary' }}" style="width:100%; margin-bottom:8px;" onclick="openStatusModal('{{ $status }}', '{{ \App\Models\Document::$statusNames[$status] }}')">
             → {{ \App\Models\Document::$statusNames[$status] }}
           </button>
         @endforeach

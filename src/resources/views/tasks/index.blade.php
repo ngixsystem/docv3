@@ -10,10 +10,10 @@
 @section('content')
 @php
 $cols = [
-  'new' => ['label' => 'Новая', 'dot' => '#6c757d', 'class' => 'kanban-col-new'],
-  'in_progress' => ['label' => 'В работе', 'dot' => '#0d6efd', 'class' => 'kanban-col-progress'],
-  'paused' => ['label' => 'Приостановлена', 'dot' => '#fd7e14', 'class' => 'kanban-col-paused'],
-  'done' => ['label' => 'Выполнена', 'dot' => '#198754', 'class' => 'kanban-col-done'],
+  'new' => ['label' => 'Новая', 'dot' => '#555555', 'class' => 'kanban-col-new'],
+  'in_progress' => ['label' => 'В работе', 'dot' => '#9b1c1c', 'class' => 'kanban-col-progress'],
+  'paused' => ['label' => 'Приостановлена', 'dot' => '#c2410c', 'class' => 'kanban-col-paused'],
+  'done' => ['label' => 'Выполнена', 'dot' => '#15803d', 'class' => 'kanban-col-done'],
 ];
 @endphp
 
@@ -51,51 +51,52 @@ $cols = [
 }
 
 html[data-theme="dark"] .kanban-col-new {
-  background: linear-gradient(180deg, rgba(26,37,57,.96) 0%, rgba(20,29,45,.96) 100%);
-  border-color: #2a3952;
+  background: linear-gradient(180deg, #141414 0%, #111111 100%);
+  border-color: #272727;
 }
 
 html[data-theme="dark"] .kanban-col-progress {
-  background: linear-gradient(180deg, rgba(21,36,64,.96) 0%, rgba(17,29,50,.96) 100%);
-  border-color: #29406a;
+  background: linear-gradient(180deg, #161414 0%, #121111 100%);
+  border-color: #2e2020;
 }
 
 html[data-theme="dark"] .kanban-col-paused {
-  background: linear-gradient(180deg, rgba(58,38,26,.96) 0%, rgba(42,29,20,.96) 100%);
-  border-color: #5b3b23;
+  background: linear-gradient(180deg, #151414 0%, #111111 100%);
+  border-color: #272727;
 }
 
 html[data-theme="dark"] .kanban-col-done {
-  background: linear-gradient(180deg, rgba(24,43,35,.96) 0%, rgba(18,33,27,.96) 100%);
-  border-color: #2e5a48;
+  background: linear-gradient(180deg, #141414 0%, #111111 100%);
+  border-color: #272727;
 }
 
 html[data-theme="dark"] .kanban-col .kanban-header {
-  border-bottom-color: rgba(255,255,255,.08);
+  border-bottom-color: rgba(255,255,255,.07);
 }
 
 html[data-theme="dark"] .kanban-col .kanban-count {
-  background: rgba(255,255,255,.08);
-  color: #d7e2f4;
+  background: rgba(255,255,255,.07);
+  color: #888888;
 }
 
 html[data-theme="dark"] .task-card {
-  background: rgba(15,25,43,.92);
-  border-color: rgba(120,148,194,.18);
-  box-shadow: 0 10px 28px rgba(0,0,0,.22);
+  background: #1a1a1a;
+  border-color: #2a2a2a;
+  box-shadow: 0 4px 16px rgba(0,0,0,.4);
 }
 
 html[data-theme="dark"] .task-card:hover {
-  border-color: rgba(255,255,255,.18);
+  border-color: rgba(185,28,28,.35);
+  box-shadow: 0 6px 20px rgba(0,0,0,.5);
 }
 
 html[data-theme="dark"] .btn-secondary {
-  background: rgba(255,255,255,.08);
-  color: #eef4ff;
+  background: rgba(255,255,255,.07);
+  color: #cccccc;
 }
 
 html[data-theme="dark"] .btn-secondary:hover {
-  background: rgba(255,255,255,.12);
+  background: rgba(255,255,255,.11);
 }
 
 .kanban-cards.drag-over {

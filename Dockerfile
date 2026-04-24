@@ -37,7 +37,6 @@ RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist
 
 # Copy the application source.
 COPY src/ .
-RUN composer dump-autoload --optimize
 
 # Prepare writable Laravel directories for named volumes.
 RUN mkdir -p \
@@ -50,6 +49,8 @@ RUN mkdir -p \
     && echo "" > bootstrap/cache/.gitignore \
     && chmod -R 775 storage bootstrap/cache \
     && chown -R www-data:www-data storage bootstrap/cache vendor
+
+RUN composer dump-autoload --optimize
 
 COPY docker/entrypoint.sh /usr/local/bin/app-entrypoint
 RUN chmod +x /usr/local/bin/app-entrypoint

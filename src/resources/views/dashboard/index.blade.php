@@ -86,14 +86,14 @@
   --dash-soft-shadow: 0 8px 20px rgba(15,23,42,.04);
 }
 html[data-theme="dark"] .dashboard-shell {
-  --dash-panel-bg: linear-gradient(180deg, rgba(20,31,50,.96) 0%, rgba(16,25,40,.93) 100%);
-  --dash-panel-strong: linear-gradient(180deg, rgba(24,36,56,.98) 0%, rgba(18,29,46,.96) 100%);
-  --dash-panel-warm: linear-gradient(145deg, rgba(34,28,43,.95) 0%, rgba(18,29,46,.96) 52%, rgba(25,30,52,.95) 100%);
-  --dash-track: #22314a;
-  --dash-grid: #2a3953;
-  --dash-point-stroke: #101826;
-  --dash-task-card: #172235;
-  --dash-soft-shadow: 0 12px 26px rgba(0,0,0,.22);
+  --dash-panel-bg: linear-gradient(180deg, rgba(16,16,16,.97) 0%, rgba(12,12,12,.95) 100%);
+  --dash-panel-strong: linear-gradient(180deg, rgba(20,20,20,.99) 0%, rgba(15,15,15,.97) 100%);
+  --dash-panel-warm: linear-gradient(145deg, rgba(22,10,10,.97) 0%, rgba(16,16,16,.97) 52%, rgba(18,12,12,.97) 100%);
+  --dash-track: #252525;
+  --dash-grid: #2e2e2e;
+  --dash-point-stroke: #080808;
+  --dash-task-card: #141414;
+  --dash-soft-shadow: 0 12px 26px rgba(0,0,0,.45);
 }
 .hero-grid { display:grid; grid-template-columns:1.4fr .9fr; gap:20px; }
 .hero-panel {
@@ -133,7 +133,7 @@ html[data-theme="dark"] .dashboard-shell {
 .hero-chip-sub { font-size: 12px; opacity: .78; margin-top: 4px; }
 .donut-panel {
   background:
-    radial-gradient(circle at top right, rgba(233,69,96,.14), transparent 30%),
+    radial-gradient(circle at top right, rgba(155,28,28,.1), transparent 32%),
     var(--dash-panel-bg);
   border-radius: 22px;
   border: 1px solid var(--border);
@@ -202,7 +202,7 @@ html[data-theme="dark"] .dashboard-shell {
   display:flex;
   align-items:center;
   justify-content:center;
-  font-size: 22px;
+  flex-shrink: 0;
   color: var(--icon-color, var(--value-color));
   background:
     linear-gradient(180deg, rgba(255,255,255,.88) 0%, color-mix(in srgb, var(--icon-bg) 82%, white) 100%);
@@ -210,6 +210,12 @@ html[data-theme="dark"] .dashboard-shell {
   box-shadow:
     0 10px 20px rgba(15,23,42,.08),
     inset 0 1px 0 rgba(255,255,255,.65);
+}
+.metric-icon svg {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  display: block;
 }
 .metric-value {
   font-size: 40px;
@@ -234,35 +240,35 @@ html[data-theme="dark"] .dashboard-shell {
 }
 html[data-theme="dark"] .metric-card {
   background:
-    radial-gradient(circle at top right, rgba(255,255,255,.04), transparent 22%),
-    linear-gradient(180deg, rgba(20,31,50,.98) 0%, rgba(16,25,40,.96) 100%);
-  border-color: rgba(86,112,155,.34);
+    radial-gradient(circle at top right, rgba(185,28,28,.06), transparent 30%),
+    linear-gradient(180deg, rgba(18,18,18,.99) 0%, rgba(13,13,13,.97) 100%);
+  border-color: rgba(255,255,255,.07);
   box-shadow:
-    0 20px 38px rgba(0,0,0,.24),
-    inset 0 1px 0 rgba(255,255,255,.05);
+    0 20px 38px rgba(0,0,0,.5),
+    inset 0 1px 0 rgba(255,255,255,.04);
 }
 html[data-theme="dark"] .metric-card::before {
   background:
-    radial-gradient(circle at top right, rgba(255,255,255,.05), transparent 24%),
-    linear-gradient(135deg, color-mix(in srgb, var(--accent-tone) 18%, transparent) 0%, transparent 52%);
+    radial-gradient(circle at top right, rgba(255,255,255,.03), transparent 24%),
+    linear-gradient(135deg, color-mix(in srgb, var(--accent-tone) 14%, transparent) 0%, transparent 52%);
 }
 html[data-theme="dark"] .metric-card::after {
-  opacity: .18;
+  opacity: .14;
 }
 html[data-theme="dark"] .metric-icon {
-  background:
-    linear-gradient(180deg, rgba(255,255,255,.08) 0%, color-mix(in srgb, var(--icon-bg) 36%, rgba(15,23,42,.82)) 100%);
-  border-color: rgba(255,255,255,.08);
+  background: linear-gradient(180deg, #2a2a2a 0%, #222222 100%);
+  border-color: rgba(255,255,255,.07);
+  color: var(--icon-color);
   box-shadow:
-    0 12px 22px rgba(0,0,0,.24),
+    0 10px 22px rgba(0,0,0,.4),
     inset 0 1px 0 rgba(255,255,255,.05);
 }
 html[data-theme="dark"] .metric-label {
-  color: #dbe7ff;
+  color: #d4d4d4;
 }
 html[data-theme="dark"] .metric-trend {
-  border-top-color: rgba(255,255,255,.08);
-  color: #9cb0d0;
+  border-top-color: rgba(255,255,255,.07);
+  color: #6b6b6b;
 }
 .insight-grid { display:grid; grid-template-columns:1.2fr .8fr; gap:20px; }
 .chart-panel, .stack-panel {
@@ -293,15 +299,15 @@ html[data-theme="dark"] .metric-trend {
 }
 html[data-theme="dark"] .grafana-panel {
   background:
-    radial-gradient(circle at top right, rgba(96,165,250,.08), transparent 28%),
-    radial-gradient(circle at bottom left, rgba(233,69,96,.08), transparent 32%),
-    linear-gradient(180deg, rgba(17,27,43,.98) 0%, rgba(13,22,37,.98) 100%);
+    radial-gradient(circle at top right, rgba(185,28,28,.07), transparent 30%),
+    radial-gradient(circle at bottom left, rgba(185,28,28,.04), transparent 34%),
+    linear-gradient(180deg, rgba(18,18,18,.99) 0%, rgba(13,13,13,.99) 100%);
 }
 html[data-theme="dark"] .grafana-panel::before {
   background-image:
-    linear-gradient(rgba(148,163,184,.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(148,163,184,.04) 1px, transparent 1px);
-  opacity: .5;
+    linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
+  opacity: .6;
 }
 .mini-chart { width: 100%; height: 220px; display:block; }
 .activity-widget {
@@ -587,12 +593,12 @@ html[data-theme="dark"] .hero-chip {
 }
 html[data-theme="dark"] .activity-day-card {
   background:
-    radial-gradient(circle at top right, rgba(255,255,255,.04), transparent 28%),
-    linear-gradient(180deg, rgba(21,33,52,.96) 0%, rgba(16,25,40,.94) 100%);
-  border-color: rgba(86,112,155,.28);
+    radial-gradient(circle at top right, rgba(255,255,255,.03), transparent 30%),
+    linear-gradient(180deg, rgba(20,20,20,.97) 0%, rgba(15,15,15,.95) 100%);
+  border-color: rgba(255,255,255,.07);
 }
 html[data-theme="dark"] .activity-day-total {
-  border-top-color: rgba(255,255,255,.08);
+  border-top-color: rgba(255,255,255,.07);
 }
 html[data-theme="dark"] .metric-card,
 html[data-theme="dark"] .donut-panel,
@@ -600,7 +606,7 @@ html[data-theme="dark"] .chart-panel,
 html[data-theme="dark"] .stack-panel,
 html[data-theme="dark"] .list-panel,
 html[data-theme="dark"] .heat-panel {
-  box-shadow: 0 16px 36px rgba(0,0,0,.24);
+  box-shadow: 0 16px 40px rgba(0,0,0,.55);
 }
 html[data-theme="dark"] .bar-row strong,
 html[data-theme="dark"] .legend-item strong,
@@ -741,46 +747,70 @@ document.addEventListener('DOMContentLoaded', function () {
   </div>
 
   <div class="dashboard-stats">
-    <article class="metric-card" style="--icon-bg:#dbeafe; --icon-color:#2563eb; --value-color:#1d4ed8; --accent-tone:#2563eb; --card-glow:radial-gradient(circle, rgba(37,99,235,.24) 0%, rgba(37,99,235,.08) 42%, transparent 74%);">
+    <article class="metric-card" style="--icon-bg:#e8e8e8; --icon-color:#444444; --value-color:#9b1c1c; --accent-tone:#9b1c1c; --card-glow:radial-gradient(circle, rgba(155,28,28,.2) 0%, rgba(155,28,28,.06) 42%, transparent 74%);">
       <div class="metric-top">
         <div class="metric-copy">
           <div class="metric-label">Всего документов</div>
           <div class="metric-value">{{ $stats['total'] }}</div>
         </div>
-        <div class="metric-icon">📄</div>
+        <div class="metric-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+            <line x1="10" y1="9" x2="8" y2="9"/>
+          </svg>
+        </div>
       </div>
       <div class="metric-trend">{{ $stats['review'] }} сейчас на рассмотрении</div>
     </article>
 
-    <article class="metric-card" style="--icon-bg:#ffedd5; --icon-color:#ea580c; --value-color:#c2410c; --accent-tone:#f97316; --card-glow:radial-gradient(circle, rgba(249,115,22,.24) 0%, rgba(249,115,22,.08) 42%, transparent 74%);">
+    <article class="metric-card" style="--icon-bg:#e8e8e8; --icon-color:#555555; --value-color:#c2410c; --accent-tone:#c2410c; --card-glow:radial-gradient(circle, rgba(194,65,12,.2) 0%, rgba(194,65,12,.06) 42%, transparent 74%);">
       <div class="metric-top">
         <div class="metric-copy">
-          <div class="metric-label">На рассмотрении</div>
+          <div class="metric-label">В работе</div>
           <div class="metric-value">{{ $stats['review'] }}</div>
         </div>
-        <div class="metric-icon">🔎</div>
+        <div class="metric-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+          </svg>
+        </div>
       </div>
       <div class="metric-trend">ключевой поток согласований</div>
     </article>
 
-    <article class="metric-card" style="--icon-bg:#dcfce7; --icon-color:#16a34a; --value-color:#15803d; --accent-tone:#16a34a; --card-glow:radial-gradient(circle, rgba(22,163,74,.22) 0%, rgba(22,163,74,.07) 42%, transparent 74%);">
+    <article class="metric-card" style="--icon-bg:#e8e8e8; --icon-color:#444444; --value-color:#15803d; --accent-tone:#16a34a; --card-glow:radial-gradient(circle, rgba(22,163,74,.18) 0%, rgba(22,163,74,.05) 42%, transparent 74%);">
       <div class="metric-top">
         <div class="metric-copy">
           <div class="metric-label">Активных задач</div>
           <div class="metric-value">{{ $stats['tasks'] }}</div>
         </div>
-        <div class="metric-icon">✓</div>
+        <div class="metric-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 11l3 3L22 4"/>
+            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+          </svg>
+        </div>
       </div>
       <div class="metric-trend">{{ $taskStatusStats->firstWhere('key', 'in_progress')['count'] ?? 0 }} в активной работе</div>
     </article>
 
-    <article class="metric-card" style="--icon-bg:#fee2e2; --icon-color:#ef4444; --value-color:#dc2626; --accent-tone:#ef4444; --card-glow:radial-gradient(circle, rgba(239,68,68,.22) 0%, rgba(239,68,68,.07) 42%, transparent 74%);">
+    <article class="metric-card" style="--icon-bg:#e8e8e8; --icon-color:#9b1c1c; --value-color:#dc2626; --accent-tone:#dc2626; --card-glow:radial-gradient(circle, rgba(220,38,38,.2) 0%, rgba(220,38,38,.06) 42%, transparent 74%);">
       <div class="metric-top">
         <div class="metric-copy">
           <div class="metric-label">Просроченных</div>
           <div class="metric-value">{{ $stats['overdue'] }}</div>
         </div>
-        <div class="metric-icon">⚠</div>
+        <div class="metric-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+        </div>
       </div>
       <div class="metric-trend">задач требуют немедленного внимания</div>
     </article>
