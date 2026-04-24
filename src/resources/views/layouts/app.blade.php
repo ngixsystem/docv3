@@ -495,6 +495,53 @@ html[data-theme="dark"] .theme-btn .theme-dark { display: inline; }
 .topbar-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .page-content { padding: 28px; flex: 1; }
 
+.topbar-clock {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  border-radius: 16px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(16px);
+  box-shadow: var(--shadow);
+  cursor: default;
+  user-select: none;
+}
+.clock-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  flex-shrink: 0;
+  color: var(--accent);
+}
+.clock-icon svg { width: 16px; height: 16px; }
+.clock-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.clock-hm {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: -.03em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.clock-date {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+  white-space: nowrap;
+  letter-spacing: .01em;
+}
+@media (max-width: 640px) { .topbar-clock { display: none; } }
+
 .theme-pill {
   width: 40px;
   height: 40px;
@@ -935,6 +982,18 @@ html[data-theme="dark"] .status-inactive { background: #1f1010; color: #f07070; 
 <div class="main" id="main">
   <header class="topbar">
     <div class="topbar-title">@yield('page-title', 'Система документооборота')</div>
+    <div class="topbar-clock" id="topbarClock" aria-live="polite">
+      <div class="clock-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <polyline points="12 6 12 12 16 14"/>
+        </svg>
+      </div>
+      <div class="clock-body">
+        <div class="clock-hm" id="clockHM">00:00</div>
+        <div class="clock-date" id="clockDate"></div>
+      </div>
+    </div>
     <div class="topbar-actions">
       <label class="icon-btn theme-pill bg-picker-btn" title="Выбрать фон JPG" aria-label="Выбрать фон JPG">
         <span>🖼</span>
@@ -1120,6 +1179,27 @@ document.addEventListener('keydown', function(e) {
     document.querySelectorAll('.modal-overlay.show').forEach(m => m.classList.remove('show'));
   }
 });
+
+// Clock
+(function () {
+  const elHM   = document.getElementById('clockHM');
+  const elDate = document.getElementById('clockDate');
+  if (!elHM) return;
+
+  const days   = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
+  const months = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+
+  function pad(n) { return String(n).padStart(2, '0'); }
+
+  function tick() {
+    const now = new Date();
+    elHM.textContent  = pad(now.getHours()) + ':' + pad(now.getMinutes());
+    elDate.textContent = days[now.getDay()] + ', ' + now.getDate() + ' ' + months[now.getMonth()] + ' ' + now.getFullYear();
+  }
+
+  tick();
+  setInterval(tick, 1000);
+})();
 </script>
 @stack('scripts')
 </body>
