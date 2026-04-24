@@ -25,6 +25,10 @@ lock_hash() {
   fi
 }
 
+clear_bootstrap_cache() {
+  find bootstrap/cache -mindepth 1 -maxdepth 1 -type f -name '*.php' -delete 2>/dev/null || true
+}
+
 ensure_dependencies() {
   if [ ! -f composer.json ]; then
     return
@@ -32,9 +36,10 @@ ensure_dependencies() {
 
   current_hash="$(lock_hash)"
   stored_hash="$(cat vendor/.composer-state 2>/dev/null || true)"
-  install_flags="${COMPOSER_INSTALL_FLAGS:---no-dev --no-interaction --prefer-dist --optimize-autoloader}"
+  install_flags="${COMPOSER_INSTALL_FLAGS:---no-dev --no-interaction --prefer-dist --optimize-autoloader --no-scripts}"
 
   if [ ! -f vendor/autoload.php ] || [ "$current_hash" != "$stored_hash" ]; then
+    clear_bootstrap_cache
     composer install $install_flags
     mkdir -p vendor
     printf '%s' "$current_hash" > vendor/.composer-state
@@ -86,6 +91,11 @@ ensure_app_key() {
   fi
 }
 
+discover_packages() {
+  clear_bootstrap_cache
+  php artisan package:discover --ansi
+}
+
 run_migrations() {
   if [ "${APP_AUTO_MIGRATE:-true}" != "true" ]; then
     return
@@ -122,6 +132,7 @@ ensure_storage_link() {
 ensure_dependencies
 wait_for_database
 ensure_app_key
+discover_packages
 run_migrations
 seed_if_needed
 ensure_storage_link
