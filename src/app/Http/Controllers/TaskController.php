@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 
 class TaskController extends Controller
 {
@@ -68,7 +69,9 @@ class TaskController extends Controller
             'statusHistory.user:id,name',
         ]);
 
-        return view('tasks.show', compact('task'));
+        $registryDepartments = \App\Http\Controllers\RegistryController::accessibleDepartments($user);
+
+        return view('tasks.show', compact('task', 'registryDepartments'));
     }
 
     public function store(Request $request)
@@ -152,7 +155,14 @@ class TaskController extends Controller
 
         $file = $request->file('file');
         $storedName = uniqid() . '_' . time() . '.' . $file->getClientOriginalExtension();
+        Storage::disk('public')->makeDirectory('task-uploads');
         $path = $file->storeAs('task-uploads', $storedName, 'public');
+
+        if (!$path) {
+            throw ValidationException::withMessages([
+                'file' => 'Не удалось сохранить файл. Проверьте права на storage/app/public/task-uploads.',
+            ]);
+        }
 
         $task->taskFiles()->create([
             'original_name' => $file->getClientOriginalName(),

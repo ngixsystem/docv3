@@ -235,6 +235,9 @@
         @if($task->document)
           <a href="{{ route('documents.show', $task->document) }}" class="btn btn-outline">Документ</a>
         @endif
+        @if($task->status === 'done' && $task->document && $currentUser->hasAnyRole(['admin', 'clerk', 'manager']) && $registryDepartments->isNotEmpty())
+          <button class="btn btn-outline" type="button" onclick="openModal('taskRegistryModal')">📂 В реестр</button>
+        @endif
         @if($relatedFiles->count())
           <a href="#task-files" class="btn btn-outline">Файлы</a>
         @endif
@@ -391,6 +394,45 @@
     </form>
   </div>
 </div>
+
+@if($task->document && $currentUser->hasAnyRole(['admin', 'clerk', 'manager']) && $registryDepartments->isNotEmpty())
+<div class="modal-overlay" id="taskRegistryModal" onclick="if(event.target===this)closeModal('taskRegistryModal')">
+  <div class="modal" style="max-width:460px;">
+    <div class="modal-header">
+      <div class="modal-title">Добавить документ в реестр</div>
+      <button class="modal-close" type="button" onclick="closeModal('taskRegistryModal')">×</button>
+    </div>
+    <form method="POST" action="{{ route('registry.store') }}">
+      @csrf
+      <input type="hidden" name="document_id" value="{{ $task->document->id }}">
+      <div class="modal-body">
+        <div style="margin-bottom:14px; padding:10px 14px; background:var(--surface-soft); border-radius:8px; font-size:13px;">
+          <div style="font-weight:600; margin-bottom:2px;">{{ $task->document->number }}</div>
+          <div style="color:var(--text-muted);">{{ $task->document->subject }}</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Отдел</label>
+          <select name="department_id" class="form-control" required>
+            <option value="">— выберите отдел —</option>
+            @foreach($registryDepartments as $dept)
+              <option value="{{ $dept->id }}">{{ $dept->name }}</option>
+            @endforeach
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Примечание <span style="font-weight:400; color:var(--text-muted);">(необязательно)</span></label>
+          <textarea name="note" class="form-control" rows="2" placeholder="Краткая пометка..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('taskRegistryModal')">Отмена</button>
+        <button type="submit" class="btn btn-primary">Добавить в реестр</button>
+      </div>
+    </form>
+  </div>
+</div>
+@endif
+
 @endsection
 
 @push('scripts')

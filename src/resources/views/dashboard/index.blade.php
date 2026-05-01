@@ -100,12 +100,13 @@ html[data-theme="dark"] .dashboard-shell {
   position: relative;
   overflow: hidden;
   background:
-    radial-gradient(circle at top left, rgba(255,255,255,.22), transparent 34%),
-    linear-gradient(135deg, #10203f 0%, #19376d 52%, #d94f70 100%);
+    radial-gradient(circle at 8% 15%, rgba(255,255,255,.07), transparent 28%),
+    radial-gradient(circle at 86% 82%, rgba(185,28,28,.34), transparent 44%),
+    linear-gradient(135deg, #040404 0%, #110202 28%, #2b0505 58%, #6b0f0f 100%);
   border-radius: 22px;
   padding: 28px;
   color: #fff;
-  box-shadow: 0 20px 50px rgba(16,32,63,.18);
+  box-shadow: 0 24px 60px rgba(0,0,0,.58), 0 0 0 1px rgba(185,28,28,.16);
 }
 .hero-panel::after {
   content: '';
@@ -351,22 +352,22 @@ html[data-theme="dark"] .grafana-panel::before {
 }
 .grafana-chart { width: 100%; height: 250px; margin-top: 6px; }
 .activity-bar {
-  fill: #58b5d1;
+  fill: #9b1c1c;
   rx: 3;
   transition: transform .16s ease, opacity .16s ease, fill .16s ease;
   transform-origin: center bottom;
 }
 .activity-bar:hover {
-  fill: #6cc7df;
+  fill: #ef4444;
   opacity: .95;
   transform: scaleY(1.03);
 }
 .activity-bar-grid {
-  stroke: rgba(255,170,120,.55);
+  stroke: rgba(185,28,28,.32);
   stroke-width: 1;
 }
 html[data-theme="dark"] .activity-bar-grid {
-  stroke: rgba(255,184,120,.38);
+  stroke: rgba(185,28,28,.22);
 }
 .chart-chip {
   display: inline-flex;
@@ -624,6 +625,123 @@ html[data-theme="dark"] .donut-number {
   .hero-title { font-size: 24px; }
   .bar-row { grid-template-columns:1fr; }
 }
+
+/* ═══════════════════════════════════════════════════════
+   DASHBOARD  ·  PREMIUM RED-BLACK ENHANCEMENTS
+   ═══════════════════════════════════════════════════════ */
+
+/* Hero panel — mesh grid overlay */
+.hero-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 22px;
+  background-image:
+    linear-gradient(rgba(255,255,255,.024) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.024) 1px, transparent 1px);
+  background-size: 38px 38px;
+  pointer-events: none;
+}
+
+/* Hero panel typography */
+.hero-title {
+  font-weight: 900 !important;
+  letter-spacing: -.025em !important;
+  line-height: 1.08 !important;
+}
+.hero-kicker {
+  letter-spacing: .14em;
+  font-weight: 600;
+}
+
+/* Hero chips — deeper glass */
+.hero-chip {
+  background: rgba(0,0,0,.34) !important;
+  border-color: rgba(255,255,255,.12) !important;
+  backdrop-filter: blur(14px) !important;
+  transition: all .22s ease;
+}
+.hero-chip:hover {
+  border-color: rgba(185,28,28,.4) !important;
+  background: rgba(185,28,28,.13) !important;
+}
+
+/* Metric cards — cinematic pulse (dark) */
+html[data-theme="dark"] .metric-card {
+  animation: metricPulse 5s ease-in-out infinite;
+}
+@keyframes metricPulse {
+  0%,100% { box-shadow: 0 20px 38px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.04); }
+  50%     { box-shadow: 0 20px 38px rgba(0,0,0,.56), 0 0 50px rgba(185,28,28,.04), inset 0 1px 0 rgba(255,255,255,.05); }
+}
+
+/* Panel glass — dark */
+html[data-theme="dark"] .donut-panel,
+html[data-theme="dark"] .chart-panel,
+html[data-theme="dark"] .stack-panel,
+html[data-theme="dark"] .heat-panel,
+html[data-theme="dark"] .list-panel {
+  background: linear-gradient(145deg, rgba(14,14,14,.98) 0%, rgba(10,10,10,.99) 100%);
+  border-color: rgba(255,255,255,.07);
+}
+
+/* Grafana panel grid — red tint */
+html[data-theme="dark"] .grafana-panel::before {
+  background-image:
+    linear-gradient(rgba(185,28,28,.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(185,28,28,.03) 1px, transparent 1px);
+}
+
+/* Chart summary cards glass */
+html[data-theme="dark"] .chart-summary-card {
+  background: linear-gradient(145deg, rgba(20,20,20,.96) 0%, rgba(14,14,14,.97) 100%);
+  border-color: rgba(255,255,255,.07);
+}
+
+/* Activity day cards hover */
+html[data-theme="dark"] .activity-day-card {
+  transition: all .22s cubic-bezier(0.16,1,.3,1);
+}
+html[data-theme="dark"] .activity-day-card:hover {
+  border-color: rgba(185,28,28,.24);
+  box-shadow: 0 8px 24px rgba(0,0,0,.62), 0 0 0 1px rgba(185,28,28,.1);
+  transform: translateY(-2px);
+}
+
+/* Activity dots — vivid colors */
+.activity-day-dot.docs  { background: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,.15); }
+.activity-day-dot.tasks { background: #ef4444; box-shadow: 0 0 0 3px rgba(239,68,68,.15); }
+.activity-day-value.tasks { color: #f87171; }
+
+/* Task spotlight cards glass */
+html[data-theme="dark"] .task-spotlight {
+  background: linear-gradient(135deg, rgba(18,18,18,.99) 0%, rgba(12,12,12,.97) 100%);
+  border-color: rgba(255,255,255,.07);
+  box-shadow: 0 4px 14px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.04);
+  transition: all .22s ease;
+}
+html[data-theme="dark"] .task-spotlight:hover {
+  border-color: rgba(185,28,28,.22);
+  box-shadow: 0 8px 24px rgba(0,0,0,.62);
+}
+html[data-theme="dark"] .task-spotlight.overdue {
+  border-left-color: #ef4444;
+  background: linear-gradient(135deg, rgba(185,28,28,.07) 0%, rgba(18,18,18,.99) 32%);
+  box-shadow: -4px 0 20px rgba(185,28,28,.16), 0 4px 14px rgba(0,0,0,.42);
+}
+
+/* Type cards — hover lift */
+.type-card { transition: all .22s cubic-bezier(0.16,1,.3,1); }
+.type-card:hover {
+  transform: translateY(-3px) scale(1.015);
+  box-shadow: 0 14px 34px rgba(0,0,0,.48);
+}
+
+/* Bar fill shine */
+.bar-fill { position: relative; overflow: hidden; }
+
+/* Panel title refinement */
+.panel-title { letter-spacing: -.01em; }
 </style>
 @endpush
 

@@ -8,18 +8,20 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Arr;
 
 class Document extends Model
 {
     protected $fillable = [
         'number', 'type', 'subject', 'description',
-        'sender_id', 'recipient_id', 'recipient_group_id', 'sender_org', 'recipient_org',
+        'sender_id', 'recipient_group_id', 'sender_org', 'recipient_orgs',
         'executor_id', 'created_by', 'status', 'doc_date', 'deadline', 'tags',
     ];
 
     protected $casts = [
-        'doc_date' => 'date',
-        'deadline' => 'date',
+        'doc_date'       => 'date',
+        'deadline'       => 'date',
+        'recipient_orgs' => 'array',
     ];
 
     public static array $typeNames = [
@@ -88,9 +90,9 @@ class Document extends Model
         return $this->belongsTo(User::class, 'sender_id');
     }
 
-    public function recipient(): BelongsTo
+    public function recipients(): BelongsToMany
     {
-        return $this->belongsTo(User::class, 'recipient_id');
+        return $this->belongsToMany(User::class, 'document_recipient_users')->withTimestamps();
     }
 
     public function recipientGroup(): BelongsTo
@@ -101,6 +103,18 @@ class Document extends Model
     public function executor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'executor_id');
+    }
+
+    public function executors(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'document_executor_users')
+            ->withPivot(['completed_at', 'completion_comment'])
+            ->withTimestamps();
+    }
+
+    public function completedExecutors(): BelongsToMany
+    {
+        return $this->executors()->wherePivotNotNull('completed_at');
     }
 
     public function createdBy(): BelongsTo
@@ -156,6 +170,21 @@ class Document extends Model
             ->values();
     }
 
+    public function allExecutorsCompleted(): bool
+    {
+        $this->loadMissing('executors');
+
+        return $this->executors->isEmpty()
+            || $this->executors->every(fn (User $executor) => !empty($executor->pivot->completed_at));
+    }
+
+    public function executorCompletionFor(User $user): ?object
+    {
+        $this->loadMissing('executors');
+
+        return optional($this->executors->firstWhere('id', $user->id))->pivot;
+    }
+
     public function scopeVisibleTo(Builder $query, User $user): Builder
     {
         if ($user->hasAnyRole(['admin', 'clerk'])) {
@@ -165,12 +194,13 @@ class Document extends Model
         return $query->where(function (Builder $inner) use ($user) {
             $inner->where('created_by', $user->id)
                 ->orWhere('sender_id', $user->id)
-                ->orWhere('executor_id', $user->id);
+                ->orWhere('executor_id', $user->id)
+                ->orWhereHas('executors', fn (Builder $users) => $users->where('users.id', $user->id));
 
             $inner->orWhere(function (Builder $recipients) use ($user) {
                 $recipients->where('status', '!=', 'draft')
                     ->where(function (Builder $recipientAccess) use ($user) {
-                        $recipientAccess->where('recipient_id', $user->id)
+                        $recipientAccess->whereHas('recipients', fn (Builder $users) => $users->where('users.id', $user->id))
                             ->orWhereHas('recipientGroup.users', fn (Builder $users) => $users->where('users.id', $user->id));
                     });
             });
@@ -178,11 +208,12 @@ class Document extends Model
             if ($user->hasRole('manager') && $user->department_id) {
                 $inner->orWhereHas('sender', fn (Builder $users) => $users->where('department_id', $user->department_id))
                     ->orWhereHas('executor', fn (Builder $users) => $users->where('department_id', $user->department_id))
+                    ->orWhereHas('executors', fn (Builder $users) => $users->where('department_id', $user->department_id))
                     ->orWhereHas('createdBy', fn (Builder $users) => $users->where('department_id', $user->department_id));
 
                 $inner->orWhere(function (Builder $managerRecipients) use ($user) {
                     $managerRecipients->where('status', '!=', 'draft')
-                        ->whereHas('recipient', fn (Builder $users) => $users->where('department_id', $user->department_id));
+                        ->whereHas('recipients', fn (Builder $users) => $users->where('department_id', $user->department_id));
                 });
             }
         });

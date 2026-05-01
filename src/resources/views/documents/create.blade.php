@@ -18,6 +18,31 @@
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent);
   transform: translateY(-1px);
 }
+
+.multi-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px 3px 12px;
+  background: var(--accent-soft);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  border-radius: 20px;
+  font-size: 13px;
+  color: var(--accent);
+}
+
+.multi-tag button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+  font-size: 16px;
+  color: var(--accent);
+  opacity: 0.6;
+}
+
+.multi-tag button:hover { opacity: 1; }
 </style>
 @endpush
 
@@ -94,18 +119,26 @@
 
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label">Получатель (сотрудник)</label>
+            <label class="form-label">Получатель (сотрудники)</label>
+            <div id="recipientTagsWrap" style="display:flex; flex-wrap:wrap; gap:6px; min-height:28px; margin-bottom:8px;"></div>
             <div class="user-combobox">
-              <input type="text" id="recipientComboInput" class="form-control user-combobox-input"
-                placeholder="Введите имя или выберите из списка" autocomplete="off"
-                value="{{ old('recipient_id') ? ($users->find(old('recipient_id'))?->name ?? '') : '' }}">
-              <input type="hidden" name="recipient_id" id="recipientComboId" value="{{ old('recipient_id') }}">
-              <div class="user-combobox-dropdown" id="recipientComboDropdown"></div>
+              <input type="text" id="recipientSearchInput" class="form-control user-combobox-input"
+                placeholder="Добавить получателя..." autocomplete="off">
+              <div class="user-combobox-dropdown" id="recipientSearchDropdown"></div>
             </div>
           </div>
           <div class="form-group">
-            <label class="form-label">Получатель (организация)</label>
-            <input type="text" name="recipient_org" class="form-control" value="{{ old('recipient_org') }}">
+            <label class="form-label">Получатель (организации)</label>
+            <div id="recipientOrgTagsWrap" style="display:flex; flex-wrap:wrap; gap:6px; min-height:28px; margin-bottom:8px;"></div>
+            <div style="display:flex; gap:6px;">
+              <input type="text" id="recipientOrgInput" class="form-control" placeholder="Введите организацию и нажмите +" list="recipientCompaniesList" autocomplete="off">
+              <button type="button" class="btn btn-secondary" onclick="addRecipientOrg()">+</button>
+            </div>
+            <datalist id="recipientCompaniesList">
+              @foreach($companies as $company)
+                <option value="{{ $company->name }}">
+              @endforeach
+            </datalist>
           </div>
         </div>
 
@@ -120,13 +153,12 @@
             </select>
           </div>
           <div class="form-group">
-            <label class="form-label">Исполнитель</label>
+            <label class="form-label">Исполнители</label>
+            <div id="executorTagsWrap" style="display:flex; flex-wrap:wrap; gap:6px; min-height:28px; margin-bottom:8px;"></div>
             <div class="user-combobox">
-              <input type="text" id="executorComboInput" class="form-control user-combobox-input"
-                placeholder="Введите имя или выберите из списка" autocomplete="off"
-                value="{{ old('executor_id') ? ($users->find(old('executor_id'))?->name ?? '') : '' }}">
-              <input type="hidden" name="executor_id" id="executorComboId" value="{{ old('executor_id') }}">
-              <div class="user-combobox-dropdown" id="executorComboDropdown"></div>
+              <input type="text" id="executorSearchInput" class="form-control user-combobox-input"
+                placeholder="Добавить исполнителя..." autocomplete="off">
+              <div class="user-combobox-dropdown" id="executorSearchDropdown"></div>
             </div>
           </div>
         </div>
@@ -263,7 +295,6 @@ document.querySelectorAll('.doc-type-filter').forEach(btn => {
   });
 });
 
-// User combobox factory
 const usersData = @json($users->map(fn($u) => ['id' => $u->id, 'name' => $u->name, 'dept' => $u->department?->name ?? ''])->values());
 
 function makeUserCombobox(inputId, hiddenId, dropdownId) {
@@ -298,9 +329,159 @@ function makeUserCombobox(inputId, hiddenId, dropdownId) {
   input.addEventListener('blur',  function () { setTimeout(() => dropdown.classList.remove('open'), 150); });
 }
 
-makeUserCombobox('senderComboInput',    'senderComboId',    'senderComboDropdown');
-makeUserCombobox('recipientComboInput', 'recipientComboId', 'recipientComboDropdown');
-makeUserCombobox('executorComboInput',  'executorComboId',  'executorComboDropdown');
+makeUserCombobox('senderComboInput',   'senderComboId',   'senderComboDropdown');
+
+// Multi-user recipient picker
+@php
+  $oldRecipientIds = array_map('intval', old('recipient_ids', []));
+  $oldExecutorIds = array_map('intval', old('executor_ids', []));
+  $preRecipients = $users->whereIn('id', $oldRecipientIds)
+    ->map(fn($u) => ['id' => $u->id, 'name' => $u->name])->values()->all();
+  $preExecutors = $users->whereIn('id', $oldExecutorIds)
+    ->map(fn($u) => ['id' => $u->id, 'name' => $u->name])->values()->all();
+  $preOrgs = old('recipient_orgs', []);
+@endphp
+
+let selectedRecipients = @json($preRecipients);
+let selectedExecutors = @json($preExecutors);
+let selectedOrgs = @json($preOrgs);
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function renderRecipientTags() {
+  const wrap = document.getElementById('recipientTagsWrap');
+  wrap.innerHTML = selectedRecipients.map((u, i) =>
+    `<span class="multi-tag">
+      ${escHtml(u.name)}
+      <button type="button" onclick="removeRecipient(${i})">×</button>
+      <input type="hidden" name="recipient_ids[]" value="${u.id}">
+    </span>`
+  ).join('');
+}
+
+function removeRecipient(i) {
+  selectedRecipients.splice(i, 1);
+  renderRecipientTags();
+}
+
+function renderExecutorTags() {
+  const wrap = document.getElementById('executorTagsWrap');
+  wrap.innerHTML = selectedExecutors.map((u, i) =>
+    `<span class="multi-tag">
+      ${escHtml(u.name)}
+      <button type="button" onclick="removeExecutor(${i})">×</button>
+      <input type="hidden" name="executor_ids[]" value="${u.id}">
+    </span>`
+  ).join('');
+}
+
+function removeExecutor(i) {
+  selectedExecutors.splice(i, 1);
+  renderExecutorTags();
+}
+
+(function () {
+  const searchInput = document.getElementById('recipientSearchInput');
+  const dropdown    = document.getElementById('recipientSearchDropdown');
+
+  function renderDropdown(query) {
+    const q   = query.trim().toLowerCase();
+    const ids = selectedRecipients.map(u => u.id);
+    const matches = (q ? usersData.filter(u => u.name.toLowerCase().includes(q)) : usersData)
+      .filter(u => !ids.includes(u.id));
+    if (!matches.length) { dropdown.classList.remove('open'); return; }
+    dropdown.innerHTML = matches.slice(0, 12).map(u =>
+      `<div class="user-combobox-option" data-id="${u.id}" data-name="${escHtml(u.name)}">
+        <span>${escHtml(u.name)}</span>
+        ${u.dept ? `<span class="user-combobox-option-dept">${escHtml(u.dept)}</span>` : ''}
+      </div>`
+    ).join('');
+    dropdown.classList.add('open');
+    dropdown.querySelectorAll('.user-combobox-option').forEach(opt => {
+      opt.addEventListener('mousedown', function (e) {
+        e.preventDefault();
+        selectedRecipients.push({ id: +this.dataset.id, name: this.dataset.name });
+        renderRecipientTags();
+        searchInput.value = '';
+        dropdown.classList.remove('open');
+      });
+    });
+  }
+
+  searchInput.addEventListener('input',  function () { renderDropdown(this.value); });
+  searchInput.addEventListener('focus',  function () { renderDropdown(this.value); });
+  searchInput.addEventListener('blur',   function () { setTimeout(() => dropdown.classList.remove('open'), 150); });
+})();
+
+(function () {
+  const searchInput = document.getElementById('executorSearchInput');
+  const dropdown    = document.getElementById('executorSearchDropdown');
+
+  function renderDropdown(query) {
+    const q   = query.trim().toLowerCase();
+    const ids = selectedExecutors.map(u => u.id);
+    const matches = (q ? usersData.filter(u => u.name.toLowerCase().includes(q)) : usersData)
+      .filter(u => !ids.includes(u.id));
+    if (!matches.length) { dropdown.classList.remove('open'); return; }
+    dropdown.innerHTML = matches.slice(0, 12).map(u =>
+      `<div class="user-combobox-option" data-id="${u.id}" data-name="${escHtml(u.name)}">
+        <span>${escHtml(u.name)}</span>
+        ${u.dept ? `<span class="user-combobox-option-dept">${escHtml(u.dept)}</span>` : ''}
+      </div>`
+    ).join('');
+    dropdown.classList.add('open');
+    dropdown.querySelectorAll('.user-combobox-option').forEach(opt => {
+      opt.addEventListener('mousedown', function (e) {
+        e.preventDefault();
+        selectedExecutors.push({ id: +this.dataset.id, name: this.dataset.name });
+        renderExecutorTags();
+        searchInput.value = '';
+        dropdown.classList.remove('open');
+      });
+    });
+  }
+
+  searchInput.addEventListener('input',  function () { renderDropdown(this.value); });
+  searchInput.addEventListener('focus',  function () { renderDropdown(this.value); });
+  searchInput.addEventListener('blur',   function () { setTimeout(() => dropdown.classList.remove('open'), 150); });
+})();
+
+// Multi-org picker
+function renderOrgTags() {
+  const wrap = document.getElementById('recipientOrgTagsWrap');
+  wrap.innerHTML = selectedOrgs.map((org, i) =>
+    `<span class="multi-tag">
+      ${escHtml(org)}
+      <button type="button" onclick="removeOrg(${i})">×</button>
+      <input type="hidden" name="recipient_orgs[]" value="${escHtml(org)}">
+    </span>`
+  ).join('');
+}
+
+function removeOrg(i) {
+  selectedOrgs.splice(i, 1);
+  renderOrgTags();
+}
+
+function addRecipientOrg() {
+  const input = document.getElementById('recipientOrgInput');
+  const val   = input.value.trim();
+  if (val && !selectedOrgs.includes(val)) {
+    selectedOrgs.push(val);
+    renderOrgTags();
+  }
+  input.value = '';
+}
+
+document.getElementById('recipientOrgInput').addEventListener('keydown', function (e) {
+  if (e.key === 'Enter') { e.preventDefault(); addRecipientOrg(); }
+});
+
+renderRecipientTags();
+renderExecutorTags();
+renderOrgTags();
 </script>
 @endpush
 @endsection

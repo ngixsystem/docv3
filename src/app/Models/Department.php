@@ -20,6 +20,11 @@ class Department extends Model
         return $this->belongsTo(User::class, 'head_id');
     }
 
+    public function registryAccesses(): HasMany
+    {
+        return $this->hasMany(RegistryAccess::class);
+    }
+
     public static function generateCode(string $name): string
     {
         $base = mb_strtoupper(mb_substr(preg_replace('/\s+/u', '', $name), 0, 4));

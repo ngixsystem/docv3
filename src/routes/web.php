@@ -9,6 +9,7 @@ use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\FileController;
 use App\Http\Controllers\GroupController;
+use App\Http\Controllers\RegistryController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
@@ -31,6 +32,7 @@ Route::middleware('auth')->group(function () {
 
     Route::prefix('documents')->name('documents.')->group(function () {
         Route::get('/', [DocumentController::class, 'index'])->name('index');
+        Route::get('/drafts', [DocumentController::class, 'drafts'])->name('drafts');
         Route::get('/create', [DocumentController::class, 'create'])->name('create');
         Route::post('/', [DocumentController::class, 'store'])->name('store');
         Route::get('/{document}/edit', [DocumentController::class, 'edit'])->name('edit');
@@ -38,6 +40,7 @@ Route::middleware('auth')->group(function () {
         Route::delete('/{document}', [DocumentController::class, 'destroy'])->name('destroy');
         Route::get('/{document}', [DocumentController::class, 'show'])->name('show');
         Route::patch('/{document}/status', [DocumentController::class, 'updateStatus'])->name('status');
+        Route::patch('/{document}/executor-complete', [DocumentController::class, 'completeExecutor'])->name('executor-complete');
         Route::post('/{document}/comment', [DocumentController::class, 'addComment'])->name('comment');
         Route::post('/{document}/upload', [FileController::class, 'upload'])->name('upload');
     });
@@ -52,6 +55,19 @@ Route::middleware('auth')->group(function () {
     });
 
     Route::get('/task-files/{taskFile}/download', [TaskController::class, 'downloadFile'])->name('task-files.download');
+
+    Route::prefix('registry')->name('registry.')->group(function () {
+        Route::get('/', [RegistryController::class, 'index'])->name('index');
+        Route::post('/', [RegistryController::class, 'store'])->name('store');
+        Route::patch('/{entry}/pin', [RegistryController::class, 'togglePin'])->name('pin');
+        Route::delete('/{entry}', [RegistryController::class, 'destroy'])->name('destroy');
+
+        Route::middleware('role:admin')->prefix('access')->name('access.')->group(function () {
+            Route::get('/', [RegistryController::class, 'accessIndex'])->name('index');
+            Route::post('/grant', [RegistryController::class, 'grantAccess'])->name('grant');
+            Route::delete('/{access}', [RegistryController::class, 'revokeAccess'])->name('revoke');
+        });
+    });
 
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::post('/notifications/{id}/read', [NotificationController::class, 'markRead'])->name('notifications.read');

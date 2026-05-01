@@ -21,20 +21,63 @@ class DocumentController extends Controller
     public function index(Request $request)
     {
         $user = Auth::user();
+        $documents = $this->documentIndexQuery($request, $user)->paginate(20)->withQueryString();
+        $users = Cache::remember('all_users_simple', 300, fn () =>
+            User::where('is_active', true)
+                ->select(['id', 'name', 'department_id'])
+                ->with('department:id,name')
+                ->orderBy('name')
+                ->get()
+        );
+        $groups = Group::withCount('users')->orderBy('name')->get(['id', 'name']);
+        $pageTitle = 'Реестр документов';
+        $cardTitle = 'Документы';
+        $listRoute = route('documents.index');
+        $showFilters = true;
 
+        return view('documents.index', compact('documents', 'users', 'groups', 'user', 'pageTitle', 'cardTitle', 'listRoute', 'showFilters'));
+    }
+
+    public function drafts(Request $request)
+    {
+        $user = Auth::user();
+        $documents = $this->documentIndexQuery($request, $user)
+            ->where('status', 'draft')
+            ->paginate(20)
+            ->withQueryString();
+
+        $users = Cache::remember('all_users_simple', 300, fn () =>
+            User::where('is_active', true)
+                ->select(['id', 'name', 'department_id'])
+                ->with('department:id,name')
+                ->orderBy('name')
+                ->get()
+        );
+        $groups = Group::withCount('users')->orderBy('name')->get(['id', 'name']);
+        $pageTitle = 'Черновики';
+        $cardTitle = 'Незарегистрированные документы';
+        $listRoute = route('documents.drafts');
+        $showFilters = false;
+
+        return view('documents.index', compact('documents', 'users', 'groups', 'user', 'pageTitle', 'cardTitle', 'listRoute', 'showFilters'));
+    }
+
+    private function documentIndexQuery(Request $request, User $user)
+    {
         $query = Document::query()
             ->visibleTo($user)
             ->with([
                 'sender:id,name',
-                'recipient:id,name',
                 'recipientGroup:id,name',
+                'recipients:id,name',
                 'executor:id,name',
+                'executors:id,name',
                 'files:id,document_id',
             ])
             ->select([
                 'id', 'number', 'type', 'subject', 'status', 'doc_date',
-                'sender_id', 'recipient_id', 'recipient_group_id', 'executor_id',
-                'sender_org', 'recipient_org',
+                'sender_id', 'recipient_group_id', 'executor_id',
+                'sender_org', 'recipient_orgs',
             ])
             ->latest();
 
@@ -49,7 +92,7 @@ class DocumentController extends Controller
                 $q->where('subject', 'ilike', "%{$search}%")
                     ->orWhere('number', 'ilike', "%{$search}%")
                     ->orWhere('sender_org', 'ilike', "%{$search}%")
-                    ->orWhere('recipient_org', 'ilike', "%{$search}%")
+                    ->orWhereRaw("recipient_orgs::text ilike ?", ["%{$search}%"])
                     ->orWhereHas('recipientGroup', fn ($groups) => $groups->where('name', 'ilike', "%{$search}%"));
             });
         }
@@ -58,17 +101,7 @@ class DocumentController extends Controller
             $query->where('status', $status);
         }
 
-        $documents = $query->paginate(20)->withQueryString();
-        $users = Cache::remember('all_users_simple', 300, fn () =>
-            User::where('is_active', true)
-                ->select(['id', 'name', 'department_id'])
-                ->with('department:id,name')
-                ->orderBy('name')
-                ->get()
-        );
-        $groups = Group::withCount('users')->orderBy('name')->get(['id', 'name']);
-
-        return view('documents.index', compact('documents', 'users', 'groups', 'user'));
+        return $query;
     }
 
     public function create()
@@ -86,13 +119,19 @@ class DocumentController extends Controller
         $validated = $request->validate($this->documentRules($user));
         $relatedDocumentIds = $this->validatedRelatedDocumentIds($user, $validated);
 
-        unset($validated['related_document_ids']);
+        $recipientIds = array_map('intval', $validated['recipient_ids'] ?? []);
+        $executorIds = array_map('intval', $validated['executor_ids'] ?? []);
+        unset($validated['related_document_ids'], $validated['recipient_ids'], $validated['executor_ids']);
+        $validated['recipient_orgs'] = array_values(array_filter($validated['recipient_orgs'] ?? []));
+        $validated['executor_id'] = $executorIds[0] ?? null;
 
         $validated['created_by'] = $user->id;
         $validated['number'] = Document::generateNumber($validated['type']);
         $validated['status'] = 'draft';
 
         $doc = Document::create($validated);
+        $doc->recipients()->sync($recipientIds);
+        $this->syncExecutors($doc, $executorIds);
 
         DocumentStatusHistory::create([
             'document_id' => $doc->id,
@@ -122,6 +161,8 @@ class DocumentController extends Controller
         $document->load([
             'relatedDocuments:id,number,subject,doc_date',
             'reverseRelatedDocuments:id,number,subject,doc_date',
+            'recipients:id,name',
+            'executors:id,name',
         ]);
 
         return view('documents.edit', array_merge(
@@ -138,9 +179,15 @@ class DocumentController extends Controller
         $validated = $request->validate($this->documentRules($user));
         $relatedDocumentIds = $this->validatedRelatedDocumentIds($user, $validated, $document);
 
-        unset($validated['related_document_ids']);
+        $recipientIds = array_map('intval', $validated['recipient_ids'] ?? []);
+        $executorIds = array_map('intval', $validated['executor_ids'] ?? []);
+        unset($validated['related_document_ids'], $validated['recipient_ids'], $validated['executor_ids']);
+        $validated['recipient_orgs'] = array_values(array_filter($validated['recipient_orgs'] ?? []));
+        $validated['executor_id'] = $executorIds[0] ?? null;
 
         $document->update($validated);
+        $document->recipients()->sync($recipientIds);
+        $this->syncExecutors($document, $executorIds);
         $this->syncRelatedDocuments($document, $relatedDocumentIds);
 
         return redirect()->route('documents.show', $document)
@@ -175,11 +222,13 @@ class DocumentController extends Controller
         $document->load([
             'sender:id,name,department_id',
             'sender.department:id,name',
-            'recipient:id,name,department_id',
-            'recipient.department:id,name',
+            'recipients:id,name,department_id',
+            'recipients.department:id,name',
             'recipientGroup:id,name',
             'executor:id,name,department_id',
             'executor.department:id,name',
+            'executors:id,name,department_id',
+            'executors.department:id,name',
             'createdBy:id,name,department_id',
             'files',
             'files.uploader:id,name',
@@ -203,7 +252,12 @@ class DocumentController extends Controller
             ->sortByDesc(fn (Document $relatedDocument) => optional($relatedDocument->doc_date)?->timestamp ?? 0)
             ->values();
 
-        return view('documents.show', compact('document', 'users', 'groups', 'relatedDocuments'));
+        $registryDepartments = \App\Http\Controllers\RegistryController::accessibleDepartments($user);
+        $registryEntries = \App\Models\RegistryEntry::where('document_id', $document->id)
+            ->with('department:id,name')
+            ->get();
+
+        return view('documents.show', compact('document', 'users', 'groups', 'relatedDocuments', 'registryDepartments', 'registryEntries'));
     }
 
     public function updateStatus(Request $request, Document $document)
@@ -213,7 +267,7 @@ class DocumentController extends Controller
 
         $validated = $request->validate([
             'status' => 'required|string',
-            'comment' => 'nullable|string',
+            'comment' => 'required|string|min:3',
         ]);
 
         $allowed = Document::$transitions[$document->status] ?? [];
@@ -222,6 +276,10 @@ class DocumentController extends Controller
         }
 
         if (!$user->canChangeDocumentStatus($document, $validated['status'])) {
+            if ($validated['status'] === 'approved' && !$document->allExecutorsCompleted()) {
+                return back()->with('error', 'Нельзя выполнить документ, пока все исполнители не отметили свою часть.');
+            }
+
             abort(403);
         }
 
@@ -243,6 +301,35 @@ class DocumentController extends Controller
         );
 
         return back()->with('success', 'Статус изменен на: ' . Document::$statusNames[$validated['status']]);
+    }
+
+    public function completeExecutor(Request $request, Document $document)
+    {
+        $user = Auth::user();
+        abort_unless($user->isDocumentExecutor($document), 403);
+
+        if ($document->status !== 'review') {
+            return back()->with('error', 'Отметить выполнение можно только когда документ находится в работе.');
+        }
+
+        $validated = $request->validate([
+            'completion_comment' => 'nullable|string|max:1000',
+        ]);
+
+        $document->executors()->updateExistingPivot($user->id, [
+            'completed_at' => now(),
+            'completion_comment' => $validated['completion_comment'] ?? null,
+            'updated_at' => now(),
+        ]);
+
+        $this->notifyDocumentParticipants(
+            $document->fresh(['executors', 'sender', 'recipients', 'executor', 'createdBy']),
+            $user,
+            'Исполнитель выполнил свою часть',
+            $document->number . ': ' . $user->name,
+        );
+
+        return back()->with('success', 'Ваша часть выполнения отмечена.');
     }
 
     public function addComment(Request $request, Document $document)
@@ -269,7 +356,15 @@ class DocumentController extends Controller
     private function storeFile(Document $doc, $file, int $userId): void
     {
         $storedName = uniqid() . '_' . time() . '.' . $file->getClientOriginalExtension();
+        Storage::disk('public')->makeDirectory('uploads');
         $path = $file->storeAs('uploads', $storedName, 'public');
+
+        if (!$path) {
+            throw ValidationException::withMessages([
+                'files' => 'Не удалось сохранить файл. Проверьте права на storage/app/public/uploads.',
+            ]);
+        }
+
         $doc->files()->create([
             'original_name' => $file->getClientOriginalName(),
             'stored_name' => $storedName,
@@ -346,11 +441,14 @@ class DocumentController extends Controller
             'subject' => 'required|string|max:500',
             'description' => 'nullable|string',
             'sender_id' => 'nullable|exists:users,id',
-            'recipient_id' => 'nullable|exists:users,id',
+            'recipient_ids' => 'nullable|array',
+            'recipient_ids.*' => 'integer|exists:users,id',
             'recipient_group_id' => 'nullable|exists:groups,id',
             'sender_org' => 'nullable|string|max:255',
-            'recipient_org' => 'nullable|string|max:255',
-            'executor_id' => 'nullable|exists:users,id',
+            'recipient_orgs' => 'nullable|array',
+            'recipient_orgs.*' => 'nullable|string|max:255',
+            'executor_ids' => 'nullable|array',
+            'executor_ids.*' => 'integer|exists:users,id',
             'doc_date' => 'required|date',
             'deadline' => 'nullable|date',
             'related_document_ids' => 'nullable|array',
@@ -363,14 +461,11 @@ class DocumentController extends Controller
         $url = route('documents.show', $document);
         $notification = new AppNotification($title, $body, $url);
 
-        $document->loadMissing(['sender', 'recipient', 'executor', 'createdBy']);
+        $document->loadMissing(['sender', 'recipients', 'executor', 'executors', 'createdBy']);
 
-        $recipients = collect([
-            $document->sender,
-            $document->recipient,
-            $document->executor,
-            $document->createdBy,
-        ])
+        $recipients = collect([$document->sender, $document->executor, $document->createdBy])
+            ->merge($document->executors)
+            ->merge($document->recipients)
             ->filter()
             ->unique('id')
             ->reject(fn (User $u) => $u->id === $actor->id);
@@ -407,5 +502,31 @@ class DocumentController extends Controller
         }
 
         return $relatedDocumentIds;
+    }
+
+    private function syncExecutors(Document $document, array $executorIds): void
+    {
+        $executorIds = collect($executorIds)
+            ->map(fn ($id) => (int) $id)
+            ->filter()
+            ->unique()
+            ->values();
+
+        $existing = $document->executors()
+            ->get()
+            ->keyBy('id');
+
+        $sync = $executorIds->mapWithKeys(function (int $executorId) use ($existing) {
+            $pivot = $existing->get($executorId)?->pivot;
+
+            return [
+                $executorId => [
+                    'completed_at' => $pivot?->completed_at,
+                    'completion_comment' => $pivot?->completion_comment,
+                ],
+            ];
+        })->all();
+
+        $document->executors()->sync($sync);
     }
 }

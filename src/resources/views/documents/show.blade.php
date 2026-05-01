@@ -3,6 +3,14 @@
 
 @php
   $isRecipientExperience = $currentUser->isDocumentRecipient($document) || $currentUser->isDocumentExecutor($document);
+  $executorCompletion = $document->executorCompletionFor($currentUser);
+  $canCompleteExecutorPart = $currentUser->isDocumentExecutor($document)
+      && $document->status === 'review'
+      && empty($executorCompletion?->completed_at);
+  $executorNames = $document->executors->isNotEmpty()
+      ? $document->executors->pluck('name')->join(', ')
+      : ($document->executor?->name ?? '—');
+  $allExecutorsCompleted = $document->allExecutorsCompleted();
   $availableStatuses = collect($document->next_statuses)
       ->filter(fn ($status) => $currentUser->canChangeDocumentStatus($document, $status))
       ->values();
@@ -283,13 +291,48 @@
             </div>
           </div>
 
+          @forelse($document->executors as $executor)
+            <div class="recipient-person">
+              <div class="avatar" style="background: {{ avatarColor($executor->name) }};">{{ $executor->initials }}</div>
+              <div class="recipient-person-copy">
+                <div class="recipient-person-label">Исполнитель</div>
+                <div class="recipient-person-name">
+                  {{ $executor->name }}
+                  @if($executor->pivot->completed_at)
+                    <span class="badge status-approved" style="margin-left:6px;">Готово</span>
+                  @else
+                    <span class="badge status-review" style="margin-left:6px;">В работе</span>
+                  @endif
+                </div>
+              </div>
+            </div>
+          @empty
+            <div class="recipient-person">
+              <div class="avatar" style="background: {{ avatarColor($document->executor?->name ?? 'Исполнитель') }};">{{ $document->executor?->initials ?? 'И' }}</div>
+              <div class="recipient-person-copy">
+                <div class="recipient-person-label">Исполнитель</div>
+                <div class="recipient-person-name">{{ $document->executor?->name ?? '—' }}</div>
+              </div>
+            </div>
+          @endforelse
+          @foreach($document->recipients as $recip)
           <div class="recipient-person">
-            <div class="avatar" style="background: {{ avatarColor($document->executor?->name ?? ($document->recipient?->name ?? 'Исполнитель')) }};">{{ $document->executor?->initials ?? $document->recipient?->initials ?? 'И' }}</div>
+            <div class="avatar" style="background: {{ avatarColor($recip->name) }};">{{ $recip->initials }}</div>
             <div class="recipient-person-copy">
-              <div class="recipient-person-label">Исполнитель</div>
-              <div class="recipient-person-name">{{ $document->executor?->name ?? $document->recipient?->name ?? $document->recipientGroup?->name ?? '—' }}</div>
+              <div class="recipient-person-label">Получатель</div>
+              <div class="recipient-person-name">{{ $recip->name }}</div>
             </div>
           </div>
+          @endforeach
+          @if($document->recipientGroup && $document->recipients->isEmpty())
+          <div class="recipient-person">
+            <div class="avatar" style="background: {{ avatarColor($document->recipientGroup->name) }};">Г</div>
+            <div class="recipient-person-copy">
+              <div class="recipient-person-label">Группа-получатель</div>
+              <div class="recipient-person-name">{{ $document->recipientGroup->name }}</div>
+            </div>
+          </div>
+          @endif
 
           <div class="recipient-person">
             <div class="avatar" style="background: {{ avatarColor($document->sender?->name ?? ($document->sender_org ?? 'Составитель')) }};">{{ $document->sender?->initials ?? 'С' }}</div>
@@ -344,14 +387,60 @@
         </div>
         <div>
           <div style="font-size:11px; color:var(--text-muted); margin-bottom:4px;">Получатель</div>
-          <div>{{ $document->recipient?->name ?? $document->recipientGroup?->name ?? $document->recipient_org ?? '—' }}</div>
+          @if($document->recipients->isNotEmpty())
+            <div>{{ $document->recipients->pluck('name')->join(', ') }}</div>
+          @elseif($document->recipientGroup)
+            <div>{{ $document->recipientGroup->name }}</div>
+          @elseif(!empty($document->recipient_orgs))
+            <div>{{ implode(', ', $document->recipient_orgs) }}</div>
+          @else
+            <div>—</div>
+          @endif
         </div>
         <div>
-          <div style="font-size:11px; color:var(--text-muted); margin-bottom:4px;">Исполнитель</div>
-          <div>{{ $document->executor?->name ?? '—' }}</div>
+          <div style="font-size:11px; color:var(--text-muted); margin-bottom:4px;">Исполнители</div>
+          <div>{{ $executorNames }}</div>
         </div>
       </div>
     </div>
+
+    @if($document->executors->isNotEmpty())
+      <div class="card">
+        <div class="card-header"><div class="card-title">Исполнение</div></div>
+        <div class="card-body" style="display:flex; flex-direction:column; gap:10px;">
+          @foreach($document->executors as $executor)
+            <div class="document-note" style="padding:12px 14px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+              <div>
+                <div style="font-weight:700;">{{ $executor->name }}</div>
+                <div style="font-size:12px; color:var(--text-muted);">
+                  @if($executor->pivot->completed_at)
+                    Выполнено {{ \Illuminate\Support\Carbon::parse($executor->pivot->completed_at)->format('d.m.Y H:i') }}
+                  @else
+                    Ожидает выполнения
+                  @endif
+                </div>
+                @if($executor->pivot->completion_comment)
+                  <div style="font-size:12px; margin-top:4px;">{{ $executor->pivot->completion_comment }}</div>
+                @endif
+              </div>
+              <span class="badge status-{{ $executor->pivot->completed_at ? 'approved' : 'review' }}">
+                {{ $executor->pivot->completed_at ? 'Готово' : 'В работе' }}
+              </span>
+            </div>
+          @endforeach
+
+          @if($canCompleteExecutorPart)
+            <button type="button" class="btn btn-success" onclick="openModal('executorCompleteModal')">Отметить мою часть выполненной</button>
+          @endif
+
+          @if(!$allExecutorsCompleted && $document->status === 'review')
+            <div style="font-size:12px; color:var(--text-muted);">
+              Статус “Выполнено” станет доступен после отметки всех исполнителей.
+            </div>
+          @endif
+        </div>
+      </div>
+    @endif
 
     @if($relatedDocuments->count())
       <div class="card">
@@ -432,6 +521,11 @@
             → {{ \App\Models\Document::$statusNames[$status] }}
           </button>
         @endforeach
+        @if($document->status === 'review' && $document->executors->isNotEmpty() && !$allExecutorsCompleted)
+          <div style="font-size:12px; color:var(--text-muted); line-height:1.5;">
+            Документ нельзя перевести в “Выполнено”, пока все исполнители не отметили свою часть.
+          </div>
+        @endif
       </div>
     </div>
 
@@ -460,6 +554,34 @@
               <div style="font-size:12px; color:var(--text-muted);">{{ $task->assignee->name }}</div>
             </div>
           @endforeach
+        </div>
+      </div>
+    @endif
+
+    {{-- Registry card --}}
+    @if($currentUser->hasAnyRole(['admin', 'clerk', 'manager']) && $registryDepartments->isNotEmpty())
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Реестр отделов</div>
+          <button type="button" class="btn btn-sm btn-primary" onclick="openModal('registryModal')">+ В реестр</button>
+        </div>
+        <div class="card-body">
+          @if($registryEntries->isEmpty())
+            <div style="color:var(--text-muted); font-size:13px;">Не добавлен ни в один реестр</div>
+          @else
+            @foreach($registryEntries as $re)
+              <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:6px 0; border-bottom:1px solid var(--border); font-size:13px;">
+                <div>
+                  <span style="font-weight:600;">{{ $re->department->name }}</span>
+                  @if($re->pinned) <span title="Закреплён">⭐</span> @endif
+                  @if($re->note)
+                    <div style="font-size:12px; color:var(--text-muted);">{{ $re->note }}</div>
+                  @endif
+                </div>
+                <a href="{{ route('registry.index', ['dept' => $re->department_id]) }}" class="btn btn-sm btn-secondary">Открыть</a>
+              </div>
+            @endforeach
+          @endif
         </div>
       </div>
     @endif
@@ -500,8 +622,8 @@
       <input type="hidden" name="status" id="statusInput">
       <div class="modal-body">
         <div class="form-group">
-          <label class="form-label">Комментарий</label>
-          <textarea name="comment" class="form-control" rows="3"></textarea>
+          <label class="form-label">Комментарий <span style="color:var(--accent);">*</span></label>
+          <textarea name="comment" class="form-control" rows="3" required minlength="3" placeholder="Обязательно укажите причину изменения статуса..."></textarea>
         </div>
       </div>
       <div class="modal-footer">
@@ -511,6 +633,69 @@
     </form>
   </div>
 </div>
+
+@if($canCompleteExecutorPart)
+<div class="modal-overlay" id="executorCompleteModal" onclick="if(event.target===this)closeModal('executorCompleteModal')">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-header">
+      <div class="modal-title">Отметить выполнение</div>
+      <button class="modal-close" type="button" onclick="closeModal('executorCompleteModal')">×</button>
+    </div>
+    <form method="POST" action="{{ route('documents.executor-complete', $document) }}">
+      @csrf
+      @method('PATCH')
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Комментарий <span style="font-weight:400; color:var(--text-muted);">(необязательно)</span></label>
+          <textarea name="completion_comment" class="form-control" rows="3" placeholder="Что выполнено по вашей части"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('executorCompleteModal')">Отмена</button>
+        <button type="submit" class="btn btn-success">Отметить выполненной</button>
+      </div>
+    </form>
+  </div>
+</div>
+@endif
+
+@if($currentUser->hasAnyRole(['admin', 'clerk', 'manager']) && $registryDepartments->isNotEmpty())
+<div class="modal-overlay" id="registryModal" onclick="if(event.target===this)closeModal('registryModal')">
+  <div class="modal" style="max-width:460px;">
+    <div class="modal-header">
+      <div class="modal-title">Добавить в реестр отдела</div>
+      <button class="modal-close" type="button" onclick="closeModal('registryModal')">×</button>
+    </div>
+    <form method="POST" action="{{ route('registry.store') }}">
+      @csrf
+      <input type="hidden" name="document_id" value="{{ $document->id }}">
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Отдел</label>
+          <select name="department_id" class="form-control" required>
+            <option value="">— выберите отдел —</option>
+            @foreach($registryDepartments as $dept)
+              <option value="{{ $dept->id }}"
+                {{ $registryEntries->contains('department_id', $dept->id) ? 'disabled' : '' }}>
+                {{ $dept->name }}
+                {{ $registryEntries->contains('department_id', $dept->id) ? '(уже добавлен)' : '' }}
+              </option>
+            @endforeach
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Примечание <span style="font-weight:400; color:var(--text-muted);">(необязательно)</span></label>
+          <textarea name="note" class="form-control" rows="3" placeholder="Краткое описание или пометка..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('registryModal')">Отмена</button>
+        <button type="submit" class="btn btn-primary">Добавить в реестр</button>
+      </div>
+    </form>
+  </div>
+</div>
+@endif
 
 @push('scripts')
 <script>

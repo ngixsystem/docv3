@@ -6,6 +6,7 @@
 <meta name="csrf-token" content="{{ csrf_token() }}">
 <title>@yield('title', 'СЭД DocV3') - СЭД</title>
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Fira+Code:wght@400;500;600;700&display=swap');
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
   --sidebar-w: 272px;
@@ -81,12 +82,14 @@ html[data-theme="dark"] {
 }
 
 body {
-  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
   background: var(--bg);
   color: var(--text);
   display: flex;
   min-height: 100vh;
   overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body.has-custom-bg {
@@ -876,6 +879,211 @@ html[data-theme="dark"] .status-inactive { background: #1f1010; color: #f07070; 
   .search-bar { flex-direction: column; }
   .kanban { grid-template-columns: 1fr; }
 }
+
+/* ═══════════════════════════════════════════════════════
+   PREMIUM RED-BLACK CINEMATIC UPGRADE  ·  DocV3 СЭД
+   ═══════════════════════════════════════════════════════ */
+
+/* Fira Code for monospace widgets */
+.clock-hm    { font-family: 'Fira Code', 'Courier New', monospace; }
+.nav-section { font-family: 'Fira Code', monospace; font-size: 9px; letter-spacing: .16em; }
+
+/* ─── Ambient sidebar glow blob ─────────────────────── */
+@keyframes ambientDrift {
+  0%   { transform: translate(0,0) scale(1);     opacity: .7; }
+  40%  { transform: translate(16px,22px) scale(1.07); opacity: 1; }
+  70%  { transform: translate(-10px,12px) scale(.96); opacity: .82; }
+  100% { transform: translate(0,0) scale(1);     opacity: .7; }
+}
+.sidebar::before {
+  content: '';
+  position: absolute;
+  width: 300px; height: 300px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(185,28,28,.17) 0%, rgba(185,28,28,.05) 44%, transparent 70%);
+  top: -110px; left: -90px;
+  pointer-events: none;
+  z-index: 0;
+  animation: ambientDrift 14s ease-in-out infinite;
+}
+
+/* ─── Active nav item — red glow ─────────────────────── */
+.nav-item.active {
+  box-shadow: 0 4px 18px rgba(185,28,28,.18), inset 0 1px 0 rgba(255,255,255,.06);
+}
+.nav-item.active::before {
+  box-shadow: 0 0 14px rgba(239,68,68,.9), 0 0 28px rgba(185,28,28,.52);
+}
+.nav-item.active .nav-icon {
+  box-shadow: 0 4px 20px rgba(185,28,28,.5), 0 0 0 1px rgba(185,28,28,.3), inset 0 1px 0 rgba(255,255,255,.09);
+}
+
+/* ─── Logo glow ──────────────────────────────────────── */
+.logo-icon {
+  box-shadow: 0 8px 28px rgba(155,28,28,.58), 0 0 0 1px rgba(255,255,255,.07), inset 0 1px 0 rgba(255,255,255,.15) !important;
+  text-shadow: 0 1px 4px rgba(0,0,0,.6);
+}
+
+/* ─── Topbar — subtle red accent line ───────────────── */
+html[data-theme="dark"] .topbar {
+  box-shadow: inset 0 -1px 0 rgba(185,28,28,.13), 0 8px 32px rgba(0,0,0,.48);
+  border-bottom-color: rgba(185,28,28,.11);
+}
+
+/* ─── Card glassmorphism (dark) ─────────────────────── */
+html[data-theme="dark"] .card {
+  background: linear-gradient(145deg, rgba(20,20,20,.97) 0%, rgba(12,12,12,.99) 100%);
+  border-color: rgba(255,255,255,.07);
+  box-shadow: 0 20px 44px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.04);
+}
+
+/* ─── Primary button — cinematic red gradient ────────── */
+.btn-primary {
+  background: linear-gradient(135deg, #c42020 0%, #8b1515 100%);
+  box-shadow: 0 4px 14px rgba(185,28,28,.36);
+  font-weight: 600;
+  letter-spacing: .01em;
+  transition: all .22s cubic-bezier(0.16,1,.3,1);
+}
+.btn-primary:hover {
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  box-shadow: 0 6px 22px rgba(185,28,28,.52);
+  transform: translateY(-1px);
+}
+
+/* ─── Active filter tabs ─────────────────────────────── */
+.filter-tab.active {
+  background: linear-gradient(135deg, #b91c1c 0%, #991b1b 100%);
+  box-shadow: 0 4px 14px rgba(185,28,28,.36);
+}
+.doc-type-filter.active {
+  background: linear-gradient(135deg, #b91c1c 0%, #991b1b 100%);
+  box-shadow: 0 4px 12px rgba(185,28,28,.36);
+}
+
+/* ─── Input focus — red ring ─────────────────────────── */
+.form-control:focus,
+.search-input:focus {
+  outline: none;
+  border-color: rgba(185,28,28,.52);
+  box-shadow: 0 0 0 3px rgba(185,28,28,.13);
+}
+
+/* ─── Topbar clock glass ─────────────────────────────── */
+html[data-theme="dark"] .topbar-clock {
+  background: linear-gradient(135deg, rgba(20,20,20,.96) 0%, rgba(12,12,12,.99) 100%);
+  border-color: rgba(255,255,255,.08);
+  box-shadow: 0 4px 16px rgba(0,0,0,.52), inset 0 1px 0 rgba(255,255,255,.04);
+}
+
+/* ─── Topbar action pills ────────────────────────────── */
+html[data-theme="dark"] .theme-pill {
+  background: linear-gradient(145deg, rgba(20,20,20,.96) 0%, rgba(12,12,12,.99) 100%);
+  border-color: rgba(255,255,255,.09);
+  box-shadow: 0 2px 8px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.04);
+  transition: all .22s cubic-bezier(0.16,1,.3,1);
+}
+html[data-theme="dark"] .theme-pill:hover {
+  border-color: rgba(185,28,28,.32);
+  box-shadow: 0 4px 14px rgba(0,0,0,.52), 0 0 0 1px rgba(185,28,28,.14);
+  color: #fff;
+}
+
+/* ─── Table hover — red tint ─────────────────────────── */
+html[data-theme="dark"] tr:hover td {
+  background: rgba(185,28,28,.04);
+}
+
+/* ─── Logout button — red tint ───────────────────────── */
+html[data-theme="dark"] .logout-btn {
+  background: linear-gradient(135deg, rgba(185,28,28,.15) 0%, rgba(155,28,28,.08) 100%);
+  border-color: rgba(185,28,28,.19);
+  color: rgba(255,255,255,.86);
+}
+html[data-theme="dark"] .logout-btn:hover {
+  background: linear-gradient(135deg, rgba(185,28,28,.28) 0%, rgba(155,28,28,.18) 100%);
+  border-color: rgba(185,28,28,.36);
+  box-shadow: 0 4px 14px rgba(185,28,28,.22);
+}
+
+/* ─── Sidebar bottom user section ───────────────────── */
+html[data-theme="dark"] .sidebar-user {
+  background: linear-gradient(180deg, rgba(255,255,255,.01) 0%, rgba(185,28,28,.045) 100%);
+}
+
+/* ─── Stat card glass ────────────────────────────────── */
+html[data-theme="dark"] .stat-card {
+  background: linear-gradient(145deg, rgba(18,18,18,.97) 0%, rgba(12,12,12,.95) 100%);
+  border-color: rgba(255,255,255,.07);
+  box-shadow: 0 16px 36px rgba(0,0,0,.62), inset 0 1px 0 rgba(255,255,255,.04);
+}
+
+/* ─── Modal dark glass ───────────────────────────────── */
+html[data-theme="dark"] .modal {
+  background: linear-gradient(145deg, rgba(16,16,16,.99) 0%, rgba(10,10,10,.99) 100%);
+  border-color: rgba(255,255,255,.08);
+  box-shadow: 0 40px 80px rgba(0,0,0,.82), 0 0 0 1px rgba(255,255,255,.04);
+}
+
+/* ─── Task cards ─────────────────────────────────────── */
+html[data-theme="dark"] .task-card {
+  background: linear-gradient(180deg, rgba(18,18,18,.99) 0%, rgba(14,14,14,.97) 100%);
+  border-color: rgba(255,255,255,.07);
+  box-shadow: 0 4px 14px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.04);
+  transition: all .22s cubic-bezier(0.16,1,.3,1);
+}
+html[data-theme="dark"] .task-card:hover {
+  border-color: rgba(255,255,255,.11);
+  box-shadow: 0 8px 22px rgba(0,0,0,.58);
+  transform: translateY(-1px);
+}
+.task-card.overdue {
+  box-shadow: -3px 0 16px rgba(185,28,28,.22), 0 4px 14px rgba(0,0,0,.42);
+}
+
+/* ─── Kanban column ──────────────────────────────────── */
+html[data-theme="dark"] .kanban-col {
+  background: linear-gradient(180deg, rgba(18,18,18,.97) 0%, rgba(14,14,14,.95) 100%);
+  border-color: rgba(255,255,255,.07);
+}
+
+/* ─── Avatar shadow ──────────────────────────────────── */
+.avatar { box-shadow: 0 4px 12px rgba(0,0,0,.42); }
+
+/* ─── Flash messages glass ───────────────────────────── */
+html[data-theme="dark"] .flash-success {
+  background: rgba(17,30,22,.96);
+  border-color: rgba(31,56,40,.82);
+  backdrop-filter: blur(10px);
+}
+html[data-theme="dark"] .flash-error {
+  background: rgba(31,10,10,.96);
+  border-color: rgba(61,24,24,.82);
+  backdrop-filter: blur(10px);
+}
+
+/* ─── Overdue badge pulse glow ───────────────────────── */
+@keyframes overdueGlow {
+  0%,100% { box-shadow: 0 0 0 0 rgba(185,28,28,.45); }
+  50%     { box-shadow: 0 0 0 5px rgba(185,28,28,.0); }
+}
+.overdue-badge { animation: overdueGlow 2s ease-in-out infinite, pulse 2s infinite; }
+
+/* ─── Custom scrollbar ───────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(185,28,28,.38);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(185,28,28,.58); }
+
+/* ─── Page content fade-in ───────────────────────────── */
+.page-content { animation: pageFadeIn .3s cubic-bezier(0.16,1,.3,1) both; }
+@keyframes pageFadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
 </style>
 @stack('styles')
 </head>
@@ -907,7 +1115,7 @@ html[data-theme="dark"] .status-inactive { background: #1f1010; color: #f07070; 
     </a>
 
     <div class="nav-section">Документы</div>
-    <a href="{{ route('documents.index') }}" class="nav-item {{ request()->routeIs('documents.*') ? 'active' : '' }}" title="Документы">
+    <a href="{{ route('documents.index') }}" class="nav-item {{ request()->routeIs('documents.index') || request()->routeIs('documents.create') || request()->routeIs('documents.show') || request()->routeIs('documents.edit') ? 'active' : '' }}" title="Документы">
       <span class="nav-icon">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -917,6 +1125,29 @@ html[data-theme="dark"] .status-inactive { background: #1f1010; color: #f07070; 
         </svg>
       </span>
       <span class="nav-label">Документы</span>
+    </a>
+
+    <a href="{{ route('registry.index') }}" class="nav-item {{ request()->routeIs('registry.*') ? 'active' : '' }}" title="Реестр отдела">
+      <span class="nav-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M2 7a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7z"/>
+          <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+          <line x1="8" y1="12" x2="16" y2="12"/>
+          <line x1="8" y1="16" x2="12" y2="16"/>
+        </svg>
+      </span>
+      <span class="nav-label">Реестр отдела</span>
+    </a>
+
+    <a href="{{ route('documents.drafts') }}" class="nav-item {{ request()->routeIs('documents.drafts') ? 'active' : '' }}" title="Черновики">
+      <span class="nav-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 20h9"/>
+          <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+          <path d="m15 5 3 3"/>
+        </svg>
+      </span>
+      <span class="nav-label">Черновики</span>
     </a>
 
     <div class="nav-section">Задачи</div>
@@ -932,6 +1163,15 @@ html[data-theme="dark"] .status-inactive { background: #1f1010; color: #f07070; 
 
     @can('manage-users')
       <div class="nav-section">Администрирование</div>
+      <a href="{{ route('registry.access.index') }}" class="nav-item {{ request()->routeIs('registry.access.*') ? 'active' : '' }}" title="Доступ к реестрам">
+        <span class="nav-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+        </span>
+        <span class="nav-label">Доступ к реестрам</span>
+      </a>
       <a href="{{ route('users.index') }}" class="nav-item {{ request()->routeIs('users.*') ? 'active' : '' }}" title="Пользователи">
         <span class="nav-icon">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

@@ -12,6 +12,7 @@ mkdir -p \
   bootstrap/cache
 
 chmod -R ug+rwX storage bootstrap/cache 2>/dev/null || true
+chown -R www-data:www-data storage bootstrap/cache 2>/dev/null || true
 
 if [ ! -f .env ] && [ -f .env.example ]; then
   cp .env.example .env

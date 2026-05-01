@@ -28,12 +28,11 @@ class DashboardController extends Controller
             ->visibleTo($user)
             ->with([
                 'sender:id,name',
-                'recipient:id,name',
                 'createdBy:id,name',
             ])
             ->select([
                 'id', 'number', 'type', 'subject', 'status', 'doc_date',
-                'sender_id', 'recipient_id', 'created_by', 'sender_org', 'recipient_org',
+                'sender_id', 'created_by', 'sender_org',
             ])
             ->latest()
             ->limit(8)

@@ -127,7 +127,8 @@ class User extends Authenticatable
 
     public function isDocumentRecipient(Document $document): bool
     {
-        if ($document->recipient_id === $this->id) {
+        $document->loadMissing('recipients');
+        if ($document->recipients->contains('id', $this->id)) {
             return true;
         }
 
@@ -138,7 +139,13 @@ class User extends Authenticatable
 
     public function isDocumentExecutor(Document $document): bool
     {
-        return $document->executor_id === $this->id;
+        if ($document->executor_id === $this->id) {
+            return true;
+        }
+
+        $document->loadMissing('executors');
+
+        return $document->executors->contains('id', $this->id);
     }
 
     public function canRecipientsViewDocument(Document $document): bool
@@ -153,6 +160,10 @@ class User extends Authenticatable
         }
 
         if (in_array($status, ['approved', 'rejected'], true)) {
+            if ($status === 'approved' && !$document->allExecutorsCompleted()) {
+                return false;
+            }
+
             return $this->canApproveDocuments()
                 || $this->isDocumentRecipient($document)
                 || $this->isDocumentExecutor($document);
@@ -201,8 +212,9 @@ class User extends Authenticatable
         if ($this->hasRole('manager') && $this->department_id) {
             $document->loadMissing([
                 'sender:id,department_id',
-                'recipient:id,department_id',
+                'recipients:id,department_id',
                 'executor:id,department_id',
+                'executors:id,department_id',
                 'createdBy:id,department_id',
             ]);
 
@@ -213,7 +225,17 @@ class User extends Authenticatable
             ]);
 
             if ($this->canRecipientsViewDocument($document)) {
-                $visibleDepartmentIds[] = optional($document->recipient)->department_id;
+                foreach ($document->recipients as $r) {
+                    if ($r->department_id) {
+                        $visibleDepartmentIds[] = $r->department_id;
+                    }
+                }
+            }
+
+            foreach ($document->executors as $executor) {
+                if ($executor->department_id) {
+                    $visibleDepartmentIds[] = $executor->department_id;
+                }
             }
 
             return in_array($this->department_id, $visibleDepartmentIds, true);
