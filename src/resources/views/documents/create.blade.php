@@ -118,7 +118,7 @@
         </div>
 
         <div class="form-row">
-          <div class="form-group">
+          <div class="form-group memo-hide-recipient">
             <label class="form-label">Получатель (сотрудники)</label>
             <div id="recipientTagsWrap" style="display:flex; flex-wrap:wrap; gap:6px; min-height:28px; margin-bottom:8px;"></div>
             <div class="user-combobox">
@@ -127,7 +127,7 @@
               <div class="user-combobox-dropdown" id="recipientSearchDropdown"></div>
             </div>
           </div>
-          <div class="form-group">
+          <div class="form-group memo-hide-recipient">
             <label class="form-label">Получатель (организации)</label>
             <div id="recipientOrgTagsWrap" style="display:flex; flex-wrap:wrap; gap:6px; min-height:28px; margin-bottom:8px;"></div>
             <div style="display:flex; gap:6px;">
@@ -239,6 +239,12 @@ function syncTypeOptions() {
   typeRadios.forEach(radio => {
     const option = radio.closest('label')?.querySelector('.type-opt');
     option?.classList.toggle('is-active', radio.checked);
+  });
+
+  const selectedType = typeRadios.find(r => r.checked)?.value ?? '';
+  const hideRecipientFields = selectedType === 'memo';
+  document.querySelectorAll('.memo-hide-recipient').forEach(el => {
+    el.style.display = hideRecipientFields ? 'none' : '';
   });
 }
 

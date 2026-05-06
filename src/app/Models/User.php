@@ -23,17 +23,20 @@ class User extends Authenticatable
         'position',
         'phone',
         'is_active',
+        'must_change_password',
         'background_image',
     ];
 
     protected $hidden = ['password', 'remember_token'];
 
     protected $casts = [
-        'is_active' => 'boolean',
+        'is_active'            => 'boolean',
+        'must_change_password' => 'boolean',
     ];
 
     public static array $roleNames = [
         'admin' => 'Администратор',
+        'ceo' => 'Генеральный директор',
         'manager' => 'Руководитель',
         'clerk' => 'Делопроизводитель',
         'employee' => 'Сотрудник',
@@ -117,12 +120,12 @@ class User extends Authenticatable
 
     public function canRegisterDocuments(): bool
     {
-        return $this->hasAnyRole(['admin', 'clerk']);
+        return $this->hasAnyRole(['admin', 'clerk', 'ceo']);
     }
 
     public function canApproveDocuments(): bool
     {
-        return $this->hasAnyRole(['admin', 'manager']);
+        return $this->hasAnyRole(['admin', 'manager', 'ceo']);
     }
 
     public function isDocumentRecipient(Document $document): bool
@@ -193,7 +196,7 @@ class User extends Authenticatable
 
     public function canViewDocument(Document $document): bool
     {
-        if ($this->hasAnyRole(['admin', 'clerk'])) {
+        if ($this->hasAnyRole(['admin', 'clerk', 'ceo'])) {
             return true;
         }
 
@@ -246,7 +249,7 @@ class User extends Authenticatable
 
     public function canViewTask(Task $task): bool
     {
-        if ($this->hasAnyRole(['admin', 'clerk'])) {
+        if ($this->hasAnyRole(['admin', 'clerk', 'ceo'])) {
             return true;
         }
 
@@ -263,6 +266,6 @@ class User extends Authenticatable
 
     public function canChangeTask(Task $task): bool
     {
-        return $this->hasAnyRole(['admin', 'manager']) || $task->assignee_id === $this->id;
+        return $this->hasAnyRole(['admin', 'manager', 'ceo']) || $task->assignee_id === $this->id;
     }
 }

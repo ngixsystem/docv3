@@ -64,16 +64,20 @@ class DocumentController extends Controller
 
     private function documentIndexQuery(Request $request, User $user)
     {
+        $with = [
+            'sender:id,name',
+            'recipientGroup:id,name',
+            'recipients:id,name',
+            'executor:id,name',
+            'files:id,document_id',
+        ];
+        if (Document::hasExecutorPivotTable()) {
+            $with[] = 'executors:id,name';
+        }
+
         $query = Document::query()
             ->visibleTo($user)
-            ->with([
-                'sender:id,name',
-                'recipientGroup:id,name',
-                'recipients:id,name',
-                'executor:id,name',
-                'executors:id,name',
-                'files:id,document_id',
-            ])
+            ->with($with)
             ->select([
                 'id', 'number', 'type', 'subject', 'status', 'doc_date',
                 'sender_id', 'recipient_group_id', 'executor_id',
@@ -125,6 +129,15 @@ class DocumentController extends Controller
         $validated['recipient_orgs'] = array_values(array_filter($validated['recipient_orgs'] ?? []));
         $validated['executor_id'] = $executorIds[0] ?? null;
 
+        if (($validated['type'] ?? null) === 'memo') {
+            $recipientIds = User::where('is_active', true)
+                ->where('role', 'clerk')
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+            $validated['recipient_orgs'] = [];
+        }
+
         $validated['created_by'] = $user->id;
         $validated['number'] = Document::generateNumber($validated['type']);
         $validated['status'] = 'draft';
@@ -148,6 +161,19 @@ class DocumentController extends Controller
         }
 
         $this->storeRelatedDocuments($doc, $relatedDocumentIds);
+
+        if ($doc->type === 'memo') {
+            $notification = new AppNotification(
+                'Новая служебная записка',
+                $doc->number . ': ' . $doc->subject,
+                route('documents.show', $doc)
+            );
+            User::where('is_active', true)
+                ->where('role', 'clerk')
+                ->where('id', '!=', $user->id)
+                ->get()
+                ->each(fn (User $clerk) => $clerk->notify($notification));
+        }
 
         return redirect()->route('documents.show', $doc)
             ->with('success', 'Документ создан: ' . $doc->number);
@@ -219,7 +245,7 @@ class DocumentController extends Controller
         $user = Auth::user();
         abort_unless($user->canViewDocument($document), 403);
 
-        $document->load([
+        $with = [
             'sender:id,name,department_id',
             'sender.department:id,name',
             'recipients:id,name,department_id',
@@ -227,8 +253,6 @@ class DocumentController extends Controller
             'recipientGroup:id,name',
             'executor:id,name,department_id',
             'executor.department:id,name',
-            'executors:id,name,department_id',
-            'executors.department:id,name',
             'createdBy:id,name,department_id',
             'files',
             'files.uploader:id,name',
@@ -237,7 +261,12 @@ class DocumentController extends Controller
             'tasks.assignee:id,name',
             'relatedDocuments:id,number,subject,type,status,doc_date',
             'reverseRelatedDocuments:id,number,subject,type,status,doc_date',
-        ]);
+        ];
+        if (Document::hasExecutorPivotTable()) {
+            $with[] = 'executors:id,name,department_id';
+            $with[] = 'executors.department:id,name';
+        }
+        $document->load($with);
 
         $users = Cache::remember('all_users_simple', 300, fn () =>
             User::where('is_active', true)
@@ -305,6 +334,10 @@ class DocumentController extends Controller
 
     public function completeExecutor(Request $request, Document $document)
     {
+        if (!Document::hasExecutorPivotTable()) {
+            return back()->with('error', 'Функция соисполнителей пока недоступна: не применены миграции базы данных.');
+        }
+
         $user = Auth::user();
         abort_unless($user->isDocumentExecutor($document), 403);
 
@@ -461,10 +494,14 @@ class DocumentController extends Controller
         $url = route('documents.show', $document);
         $notification = new AppNotification($title, $body, $url);
 
-        $document->loadMissing(['sender', 'recipients', 'executor', 'executors', 'createdBy']);
+        $relations = ['sender', 'recipients', 'executor', 'createdBy'];
+        if (Document::hasExecutorPivotTable()) {
+            $relations[] = 'executors';
+        }
+        $document->loadMissing($relations);
 
         $recipients = collect([$document->sender, $document->executor, $document->createdBy])
-            ->merge($document->executors)
+            ->merge(Document::hasExecutorPivotTable() ? $document->executors : collect())
             ->merge($document->recipients)
             ->filter()
             ->unique('id')
@@ -506,6 +543,10 @@ class DocumentController extends Controller
 
     private function syncExecutors(Document $document, array $executorIds): void
     {
+        if (!Document::hasExecutorPivotTable()) {
+            return;
+        }
+
         $executorIds = collect($executorIds)
             ->map(fn ($id) => (int) $id)
             ->filter()
