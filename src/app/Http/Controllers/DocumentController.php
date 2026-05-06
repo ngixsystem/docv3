@@ -173,6 +173,30 @@ class DocumentController extends Controller
                 ->where('id', '!=', $user->id)
                 ->get()
                 ->each(fn (User $clerk) => $clerk->notify($notification));
+
+            $ceoUsers = User::where('is_active', true)
+                ->where('role', 'ceo')
+                ->get();
+
+            if ($ceoUsers->isNotEmpty()) {
+                $fromStatus = $doc->status;
+                $doc->update(['status' => 'review']);
+
+                DocumentStatusHistory::create([
+                    'document_id' => $doc->id,
+                    'user_id' => $user->id,
+                    'from_status' => $fromStatus,
+                    'to_status' => 'review',
+                    'comment' => 'Передано делопроизводителю и направлено Генеральному директору на подпись',
+                ]);
+
+                $ceoNotification = new AppNotification(
+                    'Документ на подпись',
+                    $doc->number . ': требуется подпись Генерального директора',
+                    route('documents.show', $doc)
+                );
+                $ceoUsers->each(fn (User $ceo) => $ceo->notify($ceoNotification));
+            }
         }
 
         return redirect()->route('documents.show', $doc)
