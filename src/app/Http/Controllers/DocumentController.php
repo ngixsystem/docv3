@@ -13,6 +13,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
@@ -163,39 +164,46 @@ class DocumentController extends Controller
         $this->storeRelatedDocuments($doc, $relatedDocumentIds);
 
         if ($doc->type === 'memo') {
-            $notification = new AppNotification(
-                'Новая служебная записка',
-                $doc->number . ': ' . $doc->subject,
-                route('documents.show', $doc)
-            );
-            User::where('is_active', true)
-                ->where('role', 'clerk')
-                ->where('id', '!=', $user->id)
-                ->get()
-                ->each(fn (User $clerk) => $clerk->notify($notification));
-
-            $ceoUsers = User::where('is_active', true)
-                ->where('role', 'ceo')
-                ->get();
-
-            if ($ceoUsers->isNotEmpty()) {
-                $fromStatus = $doc->status;
-                $doc->update(['status' => 'review']);
-
-                DocumentStatusHistory::create([
-                    'document_id' => $doc->id,
-                    'user_id' => $user->id,
-                    'from_status' => $fromStatus,
-                    'to_status' => 'review',
-                    'comment' => 'Передано делопроизводителю и направлено Генеральному директору на подпись',
-                ]);
-
-                $ceoNotification = new AppNotification(
-                    'Документ на подпись',
-                    $doc->number . ': требуется подпись Генерального директора',
+            try {
+                $notification = new AppNotification(
+                    'Новая служебная записка',
+                    $doc->number . ': ' . $doc->subject,
                     route('documents.show', $doc)
                 );
-                $ceoUsers->each(fn (User $ceo) => $ceo->notify($ceoNotification));
+                User::where('is_active', true)
+                    ->where('role', 'clerk')
+                    ->where('id', '!=', $user->id)
+                    ->get()
+                    ->each(fn (User $clerk) => $clerk->notify($notification));
+
+                $ceoUsers = User::where('is_active', true)
+                    ->where('role', 'ceo')
+                    ->get();
+
+                if ($ceoUsers->isNotEmpty()) {
+                    $fromStatus = $doc->status;
+                    $doc->update(['status' => 'review']);
+
+                    DocumentStatusHistory::create([
+                        'document_id' => $doc->id,
+                        'user_id' => $user->id,
+                        'from_status' => $fromStatus,
+                        'to_status' => 'review',
+                        'comment' => 'Передано делопроизводителю и направлено Генеральному директору на подпись',
+                    ]);
+
+                    $ceoNotification = new AppNotification(
+                        'Документ на подпись',
+                        $doc->number . ': требуется подпись Генерального директора',
+                        route('documents.show', $doc)
+                    );
+                    $ceoUsers->each(fn (User $ceo) => $ceo->notify($ceoNotification));
+                }
+            } catch (\Throwable $e) {
+                Log::warning('Memo notification pipeline failed after document creation', [
+                    'document_id' => $doc->id,
+                    'exception' => $e->getMessage(),
+                ]);
             }
         }
 
