@@ -118,31 +118,6 @@
         </div>
 
         <div class="form-row">
-          <div class="form-group memo-hide-recipient">
-            <label class="form-label">Получатель (сотрудники)</label>
-            <div id="recipientTagsWrap" style="display:flex; flex-wrap:wrap; gap:6px; min-height:28px; margin-bottom:8px;"></div>
-            <div class="user-combobox">
-              <input type="text" id="recipientSearchInput" class="form-control user-combobox-input"
-                placeholder="Добавить получателя..." autocomplete="off">
-              <div class="user-combobox-dropdown" id="recipientSearchDropdown"></div>
-            </div>
-          </div>
-          <div class="form-group memo-hide-recipient">
-            <label class="form-label">Получатель (организации)</label>
-            <div id="recipientOrgTagsWrap" style="display:flex; flex-wrap:wrap; gap:6px; min-height:28px; margin-bottom:8px;"></div>
-            <div style="display:flex; gap:6px;">
-              <input type="text" id="recipientOrgInput" class="form-control" placeholder="Введите организацию и нажмите +" list="recipientCompaniesList" autocomplete="off">
-              <button type="button" class="btn btn-secondary" onclick="addRecipientOrg()">+</button>
-            </div>
-            <datalist id="recipientCompaniesList">
-              @foreach($companies as $company)
-                <option value="{{ $company->name }}">
-              @endforeach
-            </datalist>
-          </div>
-        </div>
-
-        <div class="form-row">
           <div class="form-group">
             <label class="form-label">Получатель (группа)</label>
             <select name="recipient_group_id" class="form-control">
@@ -241,11 +216,6 @@ function syncTypeOptions() {
     option?.classList.toggle('is-active', radio.checked);
   });
 
-  const selectedType = typeRadios.find(r => r.checked)?.value ?? '';
-  const hideRecipientFields = selectedType === 'memo';
-  document.querySelectorAll('.memo-hide-recipient').forEach(el => {
-    el.style.display = hideRecipientFields ? 'none' : '';
-  });
 }
 
 dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
@@ -348,28 +318,10 @@ makeUserCombobox('senderComboInput',   'senderComboId',   'senderComboDropdown')
   $preOrgs = old('recipient_orgs', []);
 @endphp
 
-let selectedRecipients = @json($preRecipients);
 let selectedExecutors = @json($preExecutors);
-let selectedOrgs = @json($preOrgs);
 
 function escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-function renderRecipientTags() {
-  const wrap = document.getElementById('recipientTagsWrap');
-  wrap.innerHTML = selectedRecipients.map((u, i) =>
-    `<span class="multi-tag">
-      ${escHtml(u.name)}
-      <button type="button" onclick="removeRecipient(${i})">×</button>
-      <input type="hidden" name="recipient_ids[]" value="${u.id}">
-    </span>`
-  ).join('');
-}
-
-function removeRecipient(i) {
-  selectedRecipients.splice(i, 1);
-  renderRecipientTags();
 }
 
 function renderExecutorTags() {
@@ -387,39 +339,6 @@ function removeExecutor(i) {
   selectedExecutors.splice(i, 1);
   renderExecutorTags();
 }
-
-(function () {
-  const searchInput = document.getElementById('recipientSearchInput');
-  const dropdown    = document.getElementById('recipientSearchDropdown');
-
-  function renderDropdown(query) {
-    const q   = query.trim().toLowerCase();
-    const ids = selectedRecipients.map(u => u.id);
-    const matches = (q ? usersData.filter(u => u.name.toLowerCase().includes(q)) : usersData)
-      .filter(u => !ids.includes(u.id));
-    if (!matches.length) { dropdown.classList.remove('open'); return; }
-    dropdown.innerHTML = matches.slice(0, 12).map(u =>
-      `<div class="user-combobox-option" data-id="${u.id}" data-name="${escHtml(u.name)}">
-        <span>${escHtml(u.name)}</span>
-        ${u.dept ? `<span class="user-combobox-option-dept">${escHtml(u.dept)}</span>` : ''}
-      </div>`
-    ).join('');
-    dropdown.classList.add('open');
-    dropdown.querySelectorAll('.user-combobox-option').forEach(opt => {
-      opt.addEventListener('mousedown', function (e) {
-        e.preventDefault();
-        selectedRecipients.push({ id: +this.dataset.id, name: this.dataset.name });
-        renderRecipientTags();
-        searchInput.value = '';
-        dropdown.classList.remove('open');
-      });
-    });
-  }
-
-  searchInput.addEventListener('input',  function () { renderDropdown(this.value); });
-  searchInput.addEventListener('focus',  function () { renderDropdown(this.value); });
-  searchInput.addEventListener('blur',   function () { setTimeout(() => dropdown.classList.remove('open'), 150); });
-})();
 
 (function () {
   const searchInput = document.getElementById('executorSearchInput');
@@ -454,40 +373,7 @@ function removeExecutor(i) {
   searchInput.addEventListener('blur',   function () { setTimeout(() => dropdown.classList.remove('open'), 150); });
 })();
 
-// Multi-org picker
-function renderOrgTags() {
-  const wrap = document.getElementById('recipientOrgTagsWrap');
-  wrap.innerHTML = selectedOrgs.map((org, i) =>
-    `<span class="multi-tag">
-      ${escHtml(org)}
-      <button type="button" onclick="removeOrg(${i})">×</button>
-      <input type="hidden" name="recipient_orgs[]" value="${escHtml(org)}">
-    </span>`
-  ).join('');
-}
-
-function removeOrg(i) {
-  selectedOrgs.splice(i, 1);
-  renderOrgTags();
-}
-
-function addRecipientOrg() {
-  const input = document.getElementById('recipientOrgInput');
-  const val   = input.value.trim();
-  if (val && !selectedOrgs.includes(val)) {
-    selectedOrgs.push(val);
-    renderOrgTags();
-  }
-  input.value = '';
-}
-
-document.getElementById('recipientOrgInput').addEventListener('keydown', function (e) {
-  if (e.key === 'Enter') { e.preventDefault(); addRecipientOrg(); }
-});
-
-renderRecipientTags();
 renderExecutorTags();
-renderOrgTags();
 </script>
 @endpush
 @endsection
